@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$/../career-db">
       <excludeFolder url="file://$MODULE_DIR$/../career-db/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="~\PycharmProjects\careermodedb\.venv" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="~\PycharmProjects\career-db\.venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings" />
