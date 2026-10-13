@@ -18,7 +18,6 @@ CREATE TABLE IF NOT EXISTS seasons (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     season     TEXT    NOT NULL,
-    club       TEXT    NOT NULL,
     age        INTEGER,
     ovr        INTEGER,
     value_m    REAL,
