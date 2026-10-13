@@ -41,3 +41,23 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+
+def add_player(name, position, nationality, game, managed_club) -> int:
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO players (name, position, nationality, game, managed_club)
+            VALUES (?, ?, ?, ?, ?)""",
+            (name, position, nationality, game, managed_club),
+        )
+        return cur.lastrowid
+
+def get_players() -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT id, name, position, nationality, game, managed_club
+            FROM players
+            ORDER BY name
+            """
+        ).fetchall()
