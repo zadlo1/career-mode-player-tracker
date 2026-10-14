@@ -1,10 +1,25 @@
-﻿import pandas as pd
+﻿import sqlite3
+
+import pandas as pd
 import streamlit as st
-from db import add_player, get_players, init_db
+from db import add_player, add_season, get_players, get_seasons, init_db
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
 ]
+
+def parse_money(text: str):
+    cleaned = text.strip().replace(".", "").replace(",", "").replace(" ","").replace("€", "")
+    if not cleaned:
+        return None
+    if not cleaned.isdigit():
+        raise ValueError
+    return int(cleaned)
+
+def format_money(value) -> str:
+    if pd.isna(value):
+        return "-"
+    return f"{int(value):,}".replace(",", ".") + " €"
 
 st.set_page_config(page_title="Career Mode DB", layout="wide")
 init_db()
@@ -23,7 +38,7 @@ with st.form("add_player", clear_on_submit=True):
     position = col3.selectbox("Pozycja", POSITIONS)
     nationality = col4.text_input("Narodowość")
 
-    game = col5.number_input("Numer gry (np. 26)", min_value=00, max_value=99, value=26, step=1)
+    game = col5.number_input("Numer gry (np. 26)", min_value=0, max_value=99, value=26, step=1)
     managed_club = col5.text_input("Klub, którym prowadzę karierę")
 
     submitted = st.form_submit_button("Dodaj zawodnika")
@@ -51,3 +66,66 @@ if players:
     st.dataframe(df, hide_index=True)
 else:
     st.write("Baza jest jeszcze pusta. Dodaj pierwszego zawodnika.")
+
+if players:
+    st.subheader("Sezony zawodnika")
+
+    by_id = {p["id"]: p for p in players}
+    player_id = st.selectbox(
+        "Zawodnik",
+        options=list(by_id.keys()),
+        format_func=lambda pid: f"{by_id[pid]['shown_name']} (FC {by_id[pid]['game']}, {by_id[pid]['managed_club']})",
+    )
+    player = by_id[player_id]
+    goals_label = "Czyste konta" if player["position"] == "GK" else "Gole"
+
+    with st.form("add_season", clear_on_submit=True):
+        c1,c2,c3,c4 = st.columns(4)
+        season = c1.text_input("Sezon", placeholder = "26/27")
+        age = c2.number_input("Wiek", min_value = 14, max_value = 50, value = 18, step = 1)
+        ovr = c3.number_input("OVR", min_value = 0, max_value = 99, value = 60, step = 1)
+        value_text = c4.text_input("Wartość (€)", placeholder="3.000.000")
+
+        c5, c6, c7 = st.columns(3)
+        matches = c5.number_input("Mecze", min_value = 0, value = 0, step = 1)
+        goals = c6.number_input(goals_label, min_value = 0, value = 0, step = 1)
+        assists = c7.number_input("Asysty", min_value = 0, value = 0, step = 1)
+
+        season_submitted = st.form_submit_button("Dodaj sezon")
+
+    if season_submitted:
+        if not season.strip():
+            st.error("Podaj sezon, np. 26/27.")
+        else:
+            try:
+                value_eur = parse_money(value_text)
+            except ValueError:
+                st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
+            else:
+                try:
+                    add_season(player_id, season.strip(), int(age), int(ovr), value_eur, int(matches), int(goals), int(assists))
+                    st.success(f"Dodano sezon: {season.strip()}")
+                except sqlite3.IntegrityError:
+                    st.error(f"Ten zawodnik ma już zapisany sezon {season.strip()}.")
+
+    seasons = get_seasons(player_id)
+    if seasons:
+        sdf = pd.DataFrame([dict(s) for s in seasons]).rename(columns={
+            "season": "Sezon",
+            "age": "Wiek",
+            "ovr": "OVR",
+            "value_eur": "Wartość",
+            "matches": "Mecze",
+            "goals": goals_label,
+            "assists": "Asysty",
+        })
+        sdf["Wartość"] = sdf["Wartość"].map(format_money)
+        st.dataframe(sdf, hide_index=True)
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Mecze razem", int(sdf["Mecze"].sum()))
+        m2.metric(f"{goals_label} razem", int(sdf[goals_label].sum()))
+        m3.metric("Asysty razem", int(sdf["Asysty"].sum()))
+        m4.metric("Max OVR", int(sdf["OVR"].max()))
+    else:
+        st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")

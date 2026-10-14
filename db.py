@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS seasons (
     season     TEXT    NOT NULL,
     age        INTEGER,
     ovr        INTEGER,
-    value_m    REAL,
+    value_eur    INTEGER,
     matches    INTEGER NOT NULL DEFAULT 0,
     goals      INTEGER NOT NULL DEFAULT 0,
     assists    INTEGER NOT NULL DEFAULT 0,
@@ -60,4 +60,26 @@ def get_players() -> list[sqlite3.Row]:
             FROM players
             ORDER BY shown_name
             """
+        ).fetchall()
+
+def add_season(player_id, season, age, ovr, value_eur, matches, goals, assists) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO seasons (player_id, season, age, ovr, value_eur, matches, goals, assists)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (player_id, season, age, ovr, value_eur, matches, goals, assists),
+        )
+
+def get_seasons(player_id) -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT season, age, ovr, value_eur, matches, goals, assists
+            FROM seasons
+            WHERE player_id = ?
+            ORDER BY season
+            """,
+            (player_id,),
         ).fetchall()
