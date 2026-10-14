@@ -2,7 +2,7 @@
 
 import pandas as pd
 import streamlit as st
-from db import add_player, add_season, get_clubs, get_games, get_players, get_seasons, init_db
+from db import add_player, add_season, get_all_clubs, get_clubs, get_games, get_players, get_seasons, init_db
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -57,6 +57,13 @@ with st.form("add_player", clear_on_submit=True):
         accept_new_options=True,
         placeholder="Wybierz lub wpisz nowy"
     )
+    original_club = st.selectbox(
+        "Klub początkowy zawodnika (opcjonalnie)",
+        options=get_all_clubs(),
+        index=None,
+        accept_new_options=True,
+        placeholder="Wybierz lub wpisz nowy",
+    )
 
     submitted = st.form_submit_button("Dodaj zawodnika")
 
@@ -66,7 +73,15 @@ if submitted:
     elif not game.strip().isdigit():
         st.error("Numer gry - wpisz samą liczbę, np. 26")
     else:
-        add_player(name.strip(), display_name.strip() or None, position, nationality.strip(), int(game.strip()), managed_club.strip())
+        add_player(
+            name.strip(),
+            display_name.strip() or None,
+            position,
+            nationality.strip(),
+            int(game.strip()),
+            managed_club.strip(),
+            original_club.strip() if original_club else None,
+        )
         st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
         st.rerun()
 
@@ -74,14 +89,15 @@ st.subheader("Zawodnicy")
 players = get_players()
 if players:
     df = pd.DataFrame([dict(p) for p in players]).drop(columns=["id"])
-    df = df[["shown_name", "name", "position", "nationality", "game", "managed_club"]]
+    df = df[["shown_name", "name", "position", "nationality", "game", "managed_club", "original_club"]]
     df = df.rename(columns={
         "shown_name": "Zawodnik",
         "name": "Pełna nazwa",
         "position": "Pozycja",
         "nationality": "Narodowość",
         "game": "Gra",
-        "managed_club": "Mój Klub",
+        "managed_club": "Mój klub",
+        "original_club": "Klub początkowy",
     })
     st.dataframe(df, hide_index=True)
 else:

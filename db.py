@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS players (
     nationality   TEXT,
     game          INTEGER NOT NULL,
     managed_club  TEXT    NOT NULL,
+    original_club TEXT,
     is_favorite   INTEGER NOT NULL DEFAULT 0
 );
 
@@ -42,21 +43,25 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
 
-def add_player(name, display_name, position, nationality, game, managed_club) -> int:
+def add_player(name, display_name, position, nationality, game, managed_club, original_club) -> int:
     with get_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO players (name, display_name, position, nationality, game, managed_club)
-            VALUES (?, ?, ?, ?, ?, ?)""",
-            (name, display_name, position, nationality, game, managed_club),
+            INSERT INTO players (name, display_name, position, nationality, game, managed_club, original_club)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (name, display_name, position, nationality, game, managed_club, original_club),
         )
         return cur.lastrowid
+
 
 def get_players() -> list[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT id, name, COALESCE(NULLIF(TRIM(display_name), ''), name) AS shown_name, position, nationality, game, managed_club
+            SELECT id, name,
+                   COALESCE(NULLIF(TRIM(display_name), ''), name) AS shown_name,
+                   position, nationality, game, managed_club, original_club
             FROM players
             ORDER BY shown_name
             """
@@ -97,3 +102,16 @@ def get_clubs() -> list[str]:
             "SELECT DISTINCT managed_club FROM players ORDER BY managed_club"
         ).fetchall()
         return [r["managed_club"] for r in rows]
+
+def get_all_clubs() -> list[str]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT managed_club AS club FROM players
+            UNION
+            SELECT original_club FROM players
+            WHERE original_club IS NOT NULL AND TRIM(original_club) != ''
+            ORDER BY club
+            """
+        ).fetchall()
+        return [r["club"] for r in rows]
