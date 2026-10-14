@@ -2,7 +2,7 @@
 
 import pandas as pd
 import streamlit as st
-from db import add_player, add_season, get_players, get_seasons, init_db
+from db import add_player, add_season, get_clubs, get_games, get_players, get_seasons, init_db
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -26,6 +26,9 @@ init_db()
 
 st.title("Baza zawodników - Career Mode")
 
+if "flash" in st.session_state:
+    st.success(st.session_state.pop("flash"))
+
 st.subheader("Dodaj zawodnika")
 with st.form("add_player", clear_on_submit=True):
     col1, col2 = st.columns(2)
@@ -34,21 +37,38 @@ with st.form("add_player", clear_on_submit=True):
         "Wyświetlana nazwa (opcjonalnie)"
     )
 
-    col3, col4, col5 = st.columns(3)
+    col3, col4 = st.columns(2)
     position = col3.selectbox("Pozycja", POSITIONS)
     nationality = col4.text_input("Narodowość")
 
-    game = col5.number_input("Numer gry (np. 26)", min_value=0, max_value=99, value=26, step=1)
-    managed_club = col5.text_input("Klub, którym prowadzę karierę")
+    col5,col6 = st.columns(2)
+
+    game = col5.selectbox(
+        "Numer gry (np. 26)",
+        options=[str(g) for g in get_games()],
+        index=None,
+        accept_new_options=True,
+        placeholder="Wybierz lub wpisz nowy",
+    )
+    managed_club = col6.selectbox(
+        "Klub, którym prowadzę karierę",
+        options=get_clubs(),
+        index=None,
+        accept_new_options=True,
+        placeholder="Wybierz lub wpisz nowy"
+    )
 
     submitted = st.form_submit_button("Dodaj zawodnika")
 
 if submitted:
-    if not name.strip() or not managed_club.strip():
-        st.error("Imię i nazwisko oraz klub są wymagane.")
+    if not name.strip() or not managed_club or not game:
+        st.error("Imię i nazwisko, numer gry oraz klub są wymagane.")
+    elif not game.strip().isdigit():
+        st.error("Numer gry - wpisz samą liczbę, np. 26")
     else:
-        add_player(name.strip(), display_name.strip() or None, position, nationality.strip(), int(game), managed_club.strip())
-        st.success(f"Dodano: {display_name.strip() or name.strip()}")
+        add_player(name.strip(), display_name.strip() or None, position, nationality.strip(), int(game.strip()), managed_club.strip())
+        st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
+        st.rerun()
 
 st.subheader("Zawodnicy")
 players = get_players()

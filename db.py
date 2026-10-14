@@ -83,3 +83,17 @@ def get_seasons(player_id) -> list[sqlite3.Row]:
             """,
             (player_id,),
         ).fetchall()
+
+def get_games() -> list[int]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT game FROM players ORDER BY game DESC"
+        ).fetchall()
+        return [r["game"] for r in rows]
+
+def get_clubs() -> list[str]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT managed_club FROM players ORDER BY managed_club"
+        ).fetchall()
+        return [r["managed_club"] for r in rows]
