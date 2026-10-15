@@ -56,61 +56,62 @@ descending = st.sidebar.checkbox("Malejąco", value=True)
 st.subheader("Dodaj zawodnika")
 pn = st.session_state.setdefault("player_form_n", 0)
 
-with st.form("add_player"):
-    col1, col2 = st.columns(2)
-    name = col1.text_input("Imię i nazwisko (pełne)", key=f"p_name_{pn}")
-    display_name = col2.text_input("Wyświetlana nazwa (opcjonalnie)", key=f"p_display_{pn}")
+with st.expander("Dodaj zawodnika"):
+    with st.form("add_player"):
+        col1, col2 = st.columns(2)
+        name = col1.text_input("Imię i nazwisko (pełne)", key=f"p_name_{pn}")
+        display_name = col2.text_input("Wyświetlana nazwa (opcjonalnie)", key=f"p_display_{pn}")
 
-    col3, col4 = st.columns(2)
-    position = col3.selectbox("Pozycja", POSITIONS, key=f"p_pos_{pn}")
-    nationality = col4.text_input("Narodowość", key=f"p_nat_{pn}")
+        col3, col4 = st.columns(2)
+        position = col3.selectbox("Pozycja", POSITIONS, key=f"p_pos_{pn}")
+        nationality = col4.text_input("Narodowość", key=f"p_nat_{pn}")
 
-    col5, col6 = st.columns(2)
-    game = col5.selectbox(
-        "Numer gry (np. 26)",
-        options=[str(g) for g in get_games()],
-        index=None,
-        accept_new_options=True,
-        placeholder="Wybierz lub wpisz nowy",
-        key=f"p_game_{pn}",
-    )
-    managed_club = col6.selectbox(
-        "Klub, którym prowadzę karierę",
-        options=get_clubs(),
-        index=None,
-        accept_new_options=True,
-        placeholder="Wybierz lub wpisz nowy",
-        key=f"p_club_{pn}",
-    )
-    original_club = st.selectbox(
-        "Klub początkowy zawodnika (opcjonalnie)",
-        options=get_all_clubs(),
-        index=None,
-        accept_new_options=True,
-        placeholder="Wybierz lub wpisz nowy",
-        key=f"p_orig_{pn}",
-    )
-
-    submitted = st.form_submit_button("Dodaj zawodnika")
-
-if submitted:
-    if not name.strip() or not managed_club or not game:
-        st.error("Imię i nazwisko, numer gry oraz klub są wymagane.")
-    elif not game.strip().isdigit():
-        st.error("Numer gry - wpisz samą liczbę, np. 26")
-    else:
-        add_player(
-            name.strip(),
-            display_name.strip() or None,
-            position,
-            nationality.strip(),
-            int(game.strip()),
-            managed_club.strip(),
-            original_club.strip() if original_club else None,
+        col5, col6 = st.columns(2)
+        game = col5.selectbox(
+            "Numer gry (np. 26)",
+            options=[str(g) for g in get_games()],
+            index=None,
+            accept_new_options=True,
+            placeholder="Wybierz lub wpisz nowy",
+            key=f"p_game_{pn}",
         )
-        st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
-        st.session_state["player_form_n"] += 1
-        st.rerun()
+        managed_club = col6.selectbox(
+            "Klub, którym prowadzę karierę",
+            options=get_clubs(),
+            index=None,
+            accept_new_options=True,
+            placeholder="Wybierz lub wpisz nowy",
+            key=f"p_club_{pn}",
+        )
+        original_club = st.selectbox(
+            "Klub początkowy zawodnika (opcjonalnie)",
+            options=get_all_clubs(),
+            index=None,
+            accept_new_options=True,
+            placeholder="Wybierz lub wpisz nowy",
+            key=f"p_orig_{pn}",
+        )
+
+        submitted = st.form_submit_button("Dodaj zawodnika")
+
+    if submitted:
+        if not name.strip() or not managed_club or not game:
+            st.error("Imię i nazwisko, numer gry oraz klub są wymagane.")
+        elif not game.strip().isdigit():
+            st.error("Numer gry - wpisz samą liczbę, np. 26")
+        else:
+            add_player(
+                name.strip(),
+                display_name.strip() or None,
+                position,
+                nationality.strip(),
+                int(game.strip()),
+                managed_club.strip(),
+                original_club.strip() if original_club else None,
+            )
+            st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
+            st.session_state["player_form_n"] += 1
+            st.rerun()
 
 st.subheader("Zawodnicy")
 players = get_players()
@@ -168,46 +169,47 @@ if fav != is_fav:
     set_favorite(player_id, fav)
     st.rerun()
 
-sn = st.session_state.setdefault("season_form_n", 0)
-
-with st.form("add_season"):
-    c1, c2, c3, c4 = st.columns(4)
-    season = c1.text_input("Sezon", placeholder="26/27", key=f"s_season_{sn}")
-    age = c2.number_input("Wiek", min_value=14, max_value=50, value=18, step=1, key=f"s_age_{sn}")
-    ovr = c3.number_input("OVR", min_value=0, max_value=99, value=60, step=1, key=f"s_ovr_{sn}")
-    value_text = c4.text_input("Wartość (€)", placeholder="3.000.000", key=f"s_value_{sn}")
-
-    c5, c6, c7 = st.columns(3)
-    matches = c5.number_input("Mecze", min_value=0, value=0, step=1, key=f"s_matches_{sn}")
-    goals = c6.number_input(goals_label, min_value=0, value=0, step=1, key=f"s_goals_{sn}")
-    assists = c7.number_input("Asysty", min_value=0, value=0, step=1, key=f"s_assists_{sn}")
-
-    season_submitted = st.form_submit_button("Dodaj sezon")
-
-if season_submitted:
-    if not season.strip():
-        st.error("Podaj sezon, np. 26/27.")
-    else:
-        try:
-            value_eur = parse_money(value_text)
-        except ValueError:
-            st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
-        else:
-            try:
-                add_season(player_id, season.strip(), int(age), int(ovr), value_eur,
-                           int(matches), int(goals), int(assists))
-                st.session_state["flash"] = f"Dodano sezon: {season.strip()}"
-                st.session_state["season_form_n"] += 1
-                st.rerun()
-            except sqlite3.IntegrityError:
-                st.error(f"Ten zawodnik ma już zapisany sezon {season.strip()}.")
-
 seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     st.html(seasons_table_html(raw, goals_label))
 else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
+
+sn = st.session_state.setdefault("season_form_n", 0)
+
+with st.expander("Dodaj sezon"):
+    with st.form("add_season"):
+        c1, c2, c3, c4 = st.columns(4)
+        season = c1.text_input("Sezon", placeholder="26/27", key=f"s_season_{sn}")
+        age = c2.number_input("Wiek", min_value=14, max_value=50, value=18, step=1, key=f"s_age_{sn}")
+        ovr = c3.number_input("OVR", min_value=0, max_value=99, value=60, step=1, key=f"s_ovr_{sn}")
+        value_text = c4.text_input("Wartość (€)", placeholder="3.000.000", key=f"s_value_{sn}")
+
+        c5, c6, c7 = st.columns(3)
+        matches = c5.number_input("Mecze", min_value=0, value=0, step=1, key=f"s_matches_{sn}")
+        goals = c6.number_input(goals_label, min_value=0, value=0, step=1, key=f"s_goals_{sn}")
+        assists = c7.number_input("Asysty", min_value=0, value=0, step=1, key=f"s_assists_{sn}")
+
+        season_submitted = st.form_submit_button("Dodaj sezon")
+
+    if season_submitted:
+        if not season.strip():
+            st.error("Podaj sezon, np. 26/27.")
+        else:
+            try:
+                value_eur = parse_money(value_text)
+            except ValueError:
+                st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
+            else:
+                try:
+                    add_season(player_id, season.strip(), int(age), int(ovr), value_eur,
+                               int(matches), int(goals), int(assists))
+                    st.session_state["flash"] = f"Dodano sezon: {season.strip()}"
+                    st.session_state["season_form_n"] += 1
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error(f"Ten zawodnik ma już zapisany sezon {season.strip()}.")
 
 with st.expander("Edytuj lub usuń zawodnika"):
     games = [str(g) for g in get_games()]
