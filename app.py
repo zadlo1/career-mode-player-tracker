@@ -16,7 +16,6 @@ POSITIONS = [
 
 SORT_OPTIONS = {
     "Zawodnik": "shown_name",
-    "OVR": "ovr",
     "Max OVR": "max_ovr",
     "Wiek": "age",
     "Wartość": "value_eur",
