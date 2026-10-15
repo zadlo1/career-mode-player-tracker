@@ -10,6 +10,7 @@ from db import (
 from ui import format_money, players_table_html, seasons_table_html
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
+from charts import ovr_chart
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -192,6 +193,12 @@ seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     st.html(seasons_table_html(raw, goals_label))
+
+    if len(raw) >= 2:
+        st.caption("Rozwój OVR")
+        st.altair_chart(ovr_chart(raw), width="stretch")
+    else:
+        st.caption("Wykres rozwoju OVR pojawi się po dodaniu drugiego sezonu.")
 else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
 
