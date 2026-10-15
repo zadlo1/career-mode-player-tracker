@@ -59,10 +59,27 @@ def get_players() -> list[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT id, name,
-                   COALESCE(NULLIF(TRIM(display_name), ''), name) AS shown_name,
-                   position, nationality, game, managed_club, original_club
-            FROM players
+            SELECT p.id, p.name,
+                   COALESCE(NULLIF(TRIM(p.display_name), ''), p.name) AS shown_name,
+                   p.position, p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
+                   ls.age, ls.ovr, ls.value_eur,
+                   agg.max_ovr, agg.matches, agg.goals, agg.assists
+            FROM players p
+            LEFT JOIN seasons ls ON ls.id = (
+                SELECT s.id FROM seasons s
+                WHERE s.player_id = p.id
+                ORDER BY s.season DESC
+                LIMIT 1
+                )
+            LEFT JOIN (
+                SELECT player_id,
+                    MAX(ovr) AS max_ovr,
+                    SUM(matches) AS matches,
+                    SUM(goals) AS goals,
+                    SUM(assists) AS assists
+                FROM seasons
+                GROUP BY player_id
+            ) agg ON agg.player_id = p.id
             ORDER BY shown_name
             """
         ).fetchall()
@@ -115,3 +132,10 @@ def get_all_clubs() -> list[str]:
             """
         ).fetchall()
         return [r["club"] for r in rows]
+
+def set_favorite(player_id, value) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE players SET is_favorite = ? WHERE id = ?",
+            (1 if value else 0, player_id),
+        )
