@@ -73,7 +73,6 @@ def players_table_html(view: pd.DataFrame) -> str:
     <div class="pl-sub">{sub_player}</div>
   </td>
   <td class="pl-num">{_num(r['age'])}</td>
-  <td class="pl-num">{ovr_badge(r['ovr'])}</td>
   <td class="pl-num">{ovr_badge(r['max_ovr'])}</td>
   <td>{format_money(r['value_eur'])}</td>
   <td>
@@ -87,12 +86,11 @@ def players_table_html(view: pd.DataFrame) -> str:
         )
 
     head = (
-        "<tr><th>Zawodnik</th><th class='pl-num'>Wiek</th><th class='pl-num'>OVR</th>"
+        "<tr><th>Zawodnik</th><th class='pl-num'>Wiek</th>"
         "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )
     return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
-
 
 def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
     rows = []
