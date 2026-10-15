@@ -7,10 +7,22 @@ from db import (
     get_players, get_seasons, init_db, set_favorite,
 )
 from ratings import rating_style
+from ui import format_money, players_table_html, seasons_table_html
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
 ]
+
+SORT_OPTIONS = {
+    "Zawodnik": "shown_name",
+    "OVR": "ovr",
+    "Max OVR": "max_ovr",
+    "Wiek": "age",
+    "Wartość": "value_eur",
+    "Mecze": "matches",
+    "Gole / czyste konta": "goals",
+    "Asysty": "assists",
+}
 
 def parse_money(text: str):
     cleaned = text.strip().replace(".", "").replace(",", "").replace(" ","").replace("€", "")
@@ -38,6 +50,8 @@ search = st.sidebar.text_input("Szukaj zawodnika")
 game_filter = st.sidebar.selectbox("Gra", options=get_games(), index=None, placeholder="Wszystkie")
 club_filter = st.sidebar.selectbox("Mój klub", options=get_clubs(), index=None, placeholder="Wszystkie")
 fav_only = st.sidebar.checkbox("Tylko ulubieni")
+sort_label = st.sidebar.selectbox("Sortuj po", list(SORT_OPTIONS), index=1)
+descending = st.sidebar.checkbox("Malejąco", value=True)
 
 st.subheader("Dodaj zawodnika")
 pn = st.session_state.setdefault("player_form_n", 0)
@@ -128,36 +142,14 @@ if view.empty:
 
 st.caption(f"Zawodników w widoku: {len(view)} z {len(df)}")
 
-table = view.assign(fav=view["is_favorite"].map(lambda v: "★" if v else ""))[
-    ["fav", "shown_name", "name", "position", "nationality", "age", "ovr", "max_ovr",
-     "value_eur", "game", "managed_club", "original_club", "matches", "goals", "assists"]
-].rename(columns={
-    "fav": "",
-    "shown_name": "Zawodnik",
-    "name": "Pełna nazwa",
-    "position": "Pozycja",
-    "nationality": "Narodowość",
-    "age": "Wiek",
-    "ovr": "OVR",
-    "max_ovr": "Max OVR",
-    "value_eur": "Wartość",
-    "game": "Gra",
-    "managed_club": "Mój klub",
-    "original_club": "Klub początkowy",
-    "matches": "Mecze",
-    "goals": "G/CS",
-    "assists": "Asysty",
-})
-
-styled = (
-    table.style
-    .map(rating_style, subset=["OVR", "Max OVR"])
-    .format(
-        {"Wiek": "{:.0f}", "OVR": "{:.0f}", "Max OVR": "{:.0f}", "Wartość": format_money},
-        na_rep="-",
-    )
+view = view.sort_values(
+    SORT_OPTIONS[sort_label],
+    ascending=not descending,
+    na_position="last",
+    key=lambda s: s.str.lower() if pd.api.types.is_string_dtype(s) else s,
 )
-st.dataframe(styled, hide_index=True)
+
+st.html(players_table_html(view))
 
 st.subheader("Sezony zawodnika")
 
@@ -210,26 +202,11 @@ if season_submitted:
             except sqlite3.IntegrityError:
                 st.error(f"Ten zawodnik ma już zapisany sezon {season.strip()}.")
 
-seasons = get_seasons(player_id)
-if seasons:
-    sdf = pd.DataFrame([dict(s) for s in seasons]).rename(columns={
-        "season": "Sezon",
-        "age": "Wiek",
-        "ovr": "OVR",
-        "value_eur": "Wartość",
-        "matches": "Mecze",
-        "goals": goals_label,
-        "assists": "Asysty",
-    })
-    st.dataframe(
-        sdf.style.map(rating_style, subset=["OVR"]).format({"Wartość": format_money}, na_rep="-"),
-        hide_index=True,
-    )
+view = view.sort_values(
+    SORT_OPTIONS[sort_label],
+    ascending=not descending,
+    na_position="last",
+    key=lambda s: s.str.lower() if pd.api.types.is_string_dtype(s) else s,
+)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Mecze razem", int(sdf["Mecze"].sum()))
-    m2.metric(f"{goals_label} razem", int(sdf[goals_label].sum()))
-    m3.metric("Asysty razem", int(sdf["Asysty"].sum()))
-    m4.metric("Max OVR", int(sdf["OVR"].max()))
-else:
-    st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
+st.html(players_table_html(view))
