@@ -9,6 +9,7 @@ from db import (
 )
 from ui import format_money, players_table_html, seasons_table_html
 from season_utils import is_valid_season, next_season
+from countries import CODES, country_name
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -75,7 +76,14 @@ with st.expander("Dodaj zawodnika"):
 
         col3, col4 = st.columns(2)
         position = col3.selectbox("Pozycja", POSITIONS, key=f"p_pos_{pn}")
-        nationality = col4.text_input("Narodowość", key=f"p_nat_{pn}")
+        nationality = col4.selectbox(
+            "Narodowość",
+            options=CODES,
+            format_func=country_name,
+            index=None,
+            placeholder="Wybierz kraj",
+            key=f"p_nat_{pn}",
+        )
 
         col5, col6 = st.columns(2)
         game = col5.selectbox(
@@ -115,7 +123,7 @@ with st.expander("Dodaj zawodnika"):
                 name.strip(),
                 display_name.strip() or None,
                 position,
-                nationality.strip(),
+                nationality or None,
                 int(game.strip()),
                 managed_club.strip(),
                 original_club.strip() if original_club else None,
@@ -239,6 +247,7 @@ with st.expander("Edytuj lub usuń zawodnika"):
     clubs = get_clubs()
     all_clubs = get_all_clubs()
     orig = clean(player["original_club"])
+    nat_value = clean(player["nationality"])
     pos_index = POSITIONS.index(player["position"]) if player["position"] in POSITIONS else 0
 
     with st.form(f"edit_player_{player_id}"):
@@ -248,7 +257,14 @@ with st.expander("Edytuj lub usuń zawodnika"):
 
         e3, e4 = st.columns(2)
         e_pos = e3.selectbox("Pozycja", POSITIONS, index=pos_index, key=f"e_pos_{player_id}")
-        e_nat = e4.text_input("Narodowość", value=clean(player["nationality"]), key=f"e_nat_{player_id}")
+        e_nat = e4.selectbox(
+            "Narodowość",
+            options=CODES,
+            format_func=country_name,
+            index=CODES.index(nat_value) if nat_value in CODES else None,
+            placeholder="Wybierz kraj",
+            key=f"e_nat_{player_id}",
+        )
 
         e5, e6 = st.columns(2)
         e_game = e5.selectbox(
@@ -293,7 +309,7 @@ with st.expander("Edytuj lub usuń zawodnika"):
                 e_name.strip(),
                 e_display.strip() or None,
                 e_pos,
-                e_nat.strip(),
+                e_nat or None,
                 int(e_game.strip()),
                 e_club.strip(),
                 e_orig.strip() if e_orig else None,

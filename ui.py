@@ -1,8 +1,14 @@
+import base64
 import html
+from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
+from countries import COUNTRIES, country_name
 from ratings import position_color, rating_color
+
+FLAGS_DIR = Path(__file__).parent / "assets" / "flags"
 
 CSS = """
 <style>
@@ -25,6 +31,9 @@ CSS = """
 .pl-total td { font-weight: 700; background: rgba(128,128,128,.12);
                border-top: 2px solid rgba(128,128,128,.35); }
 .pl-total .pl-sub { font-weight: 400; }
+.pl-flag { display: inline-block; width: 18px; height: 13px; margin-right: 6px;
+           vertical-align: -2px; border-radius: 2px; background-size: cover;
+           background-position: center; box-shadow: 0 0 0 1px rgba(128,128,128,.35); }
 </style>
 """
 
@@ -52,13 +61,41 @@ def ovr_badge(value) -> str:
         return '<span class="pl-muted">-</span>'
     return f'<span class="pl-ovr" style="background:{rating_color(value)}">{int(value)}</span>'
 
+@lru_cache(maxsize=None)
+def _flag_data_uri(code: str):
+    path = FLAGS_DIR / f"{code.lower()}.svg"
+    if not path.exists():
+        return None
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+def flag_css(codes) -> str:
+    rules = []
+    for code in sorted({c for c in codes if isinstance(c, str) and c}):
+        uri = _flag_data_uri(code)
+        if uri:
+            rules.append(f".fl-{code.lower()} {{ background-image: url('{uri}'); }}")
+    return "<style>" + "".join(rules) + "</style>"
+
+
+def nationality_html(code) -> str:
+    if code is None or (not isinstance(code, str) and pd.isna(code)) or not str(code).strip():
+        return ""
+    code = str(code).strip()
+    if code in COUNTRIES:
+        flag = ""
+        if _flag_data_uri(code):
+            flag = f'<span class="pl-flag fl-{code.lower()}"></span>'
+        return flag + html.escape(country_name(code))
+    return html.escape(code)
 
 def players_table_html(view: pd.DataFrame) -> str:
     rows = []
     for r in view.to_dict("records"):
         star = '<span class="pl-star">★</span>' if r["is_favorite"] else ""
         full = f"{_text(r['name'])} · " if r["name"] != r["shown_name"] else ""
-        sub_player = full + _text(r["nationality"])
+        sub_player = full + nationality_html(r["nationality"])
 
         sub_club = f"FC {_text(r['game'])}"
         original = _text(r["original_club"])
@@ -90,8 +127,8 @@ def players_table_html(view: pd.DataFrame) -> str:
         "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )
-    return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
-
+    flags = flag_css(view["nationality"].dropna().unique())
+    return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
 def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
     rows = []
     for r in seasons.to_dict("records"):

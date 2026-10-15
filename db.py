@@ -1,5 +1,6 @@
 ﻿import sqlite3
 from pathlib import Path
+from countries import COUNTRIES, NAME_TO_CODE
 
 DB_PATH = Path(__file__).parent / "data" / "career.db"
 
@@ -42,6 +43,26 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        _migrate_nationalities(conn)
+
+
+def _migrate_nationalities(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        SELECT DISTINCT nationality FROM players
+        WHERE nationality IS NOT NULL AND TRIM(nationality) != ''
+        """
+    ).fetchall()
+    for row in rows:
+        value = row["nationality"]
+        if value in COUNTRIES:
+            continue
+        code = NAME_TO_CODE.get(value.strip().lower())
+        if code:
+            conn.execute(
+                "UPDATE players SET nationality = ? WHERE nationality = ?",
+                (code, value),
+            )
 
 def add_player(name, display_name, position, nationality, game, managed_club, original_club) -> int:
     with get_connection() as conn:
