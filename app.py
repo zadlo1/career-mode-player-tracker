@@ -6,7 +6,6 @@ from db import (
     add_player, add_season, get_all_clubs, get_clubs, get_games,
     get_players, get_seasons, init_db, set_favorite,
 )
-from ratings import rating_style
 from ui import format_money, players_table_html, seasons_table_html
 
 POSITIONS = [
@@ -31,11 +30,6 @@ def parse_money(text: str):
     if not cleaned.isdigit():
         raise ValueError
     return int(cleaned)
-
-def format_money(value) -> str:
-    if pd.isna(value):
-        return "-"
-    return f"{int(value):,}".replace(",", ".") + " €"
 
 st.set_page_config(page_title="Career Mode DB", layout="wide")
 init_db()
@@ -202,11 +196,15 @@ if season_submitted:
             except sqlite3.IntegrityError:
                 st.error(f"Ten zawodnik ma już zapisany sezon {season.strip()}.")
 
-view = view.sort_values(
-    SORT_OPTIONS[sort_label],
-    ascending=not descending,
-    na_position="last",
-    key=lambda s: s.str.lower() if pd.api.types.is_string_dtype(s) else s,
-)
+seasons = get_seasons(player_id)
+if seasons:
+    raw = pd.DataFrame([dict(s) for s in seasons])
+    st.html(seasons_table_html(raw, goals_label))
 
-st.html(players_table_html(view))
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Mecze razem", int(raw["matches"].sum()))
+    m2.metric(f"{goals_label} razem", int(raw["goals"].sum()))
+    m3.metric("Asysty razem", int(raw["assists"].sum()))
+    m4.metric("Max OVR", int(raw["ovr"].max()))
+else:
+    st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
