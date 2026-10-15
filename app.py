@@ -3,8 +3,9 @@
 import pandas as pd
 import streamlit as st
 from db import (
-    add_player, add_season, get_all_clubs, get_clubs, get_games,
-    get_players, get_seasons, init_db, set_favorite,
+    add_player, add_season, delete_player, delete_season, get_all_clubs, get_clubs,
+    get_games, get_players, get_seasons, init_db, set_favorite,
+    update_player, update_season,
 )
 from ui import format_money, players_table_html, seasons_table_html
 
@@ -30,6 +31,11 @@ def parse_money(text: str):
     if not cleaned.isdigit():
         raise ValueError
     return int(cleaned)
+
+def clean(value) -> str:
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return ""
+    return str(value)
 
 st.set_page_config(page_title="Career Mode DB", layout="wide")
 init_db()
@@ -202,3 +208,138 @@ if seasons:
     st.html(seasons_table_html(raw, goals_label))
 else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
+
+with st.expander("Edytuj lub usuń zawodnika"):
+    games = [str(g) for g in get_games()]
+    clubs = get_clubs()
+    all_clubs = get_all_clubs()
+    orig = clean(player["original_club"])
+    pos_index = POSITIONS.index(player["position"]) if player["position"] in POSITIONS else 0
+
+    with st.form(f"edit_player_{player_id}"):
+        e1, e2 = st.columns(2)
+        e_name = e1.text_input("Imię i nazwisko (pełne)", value=clean(player["name"]), key=f"e_name_{player_id}")
+        e_display = e2.text_input("Wyświetlana nazwa (opcjonalnie)", value=clean(player["display_name"]), key=f"e_disp_{player_id}")
+
+        e3, e4 = st.columns(2)
+        e_pos = e3.selectbox("Pozycja", POSITIONS, index=pos_index, key=f"e_pos_{player_id}")
+        e_nat = e4.text_input("Narodowość", value=clean(player["nationality"]), key=f"e_nat_{player_id}")
+
+        e5, e6 = st.columns(2)
+        e_game = e5.selectbox(
+            "Numer gry",
+            options=games,
+            index=games.index(str(player["game"])),
+            accept_new_options=True,
+            key=f"e_game_{player_id}",
+        )
+        e_club = e6.selectbox(
+            "Klub, którym prowadzę karierę",
+            options=clubs,
+            index=clubs.index(player["managed_club"]),
+            accept_new_options=True,
+            key=f"e_club_{player_id}",
+        )
+        e_orig = st.selectbox(
+            "Klub początkowy zawodnika (opcjonalnie)",
+            options=all_clubs,
+            index=all_clubs.index(orig) if orig in all_clubs else None,
+            accept_new_options=True,
+            placeholder="Brak",
+            key=f"e_orig_{player_id}",
+        )
+
+        confirm_p = st.checkbox(
+            "Potwierdzam usunięcie zawodnika wraz ze wszystkimi jego sezonami",
+            key=f"e_confirm_{player_id}",
+        )
+        b1, b2, _ = st.columns([1, 1, 4])
+        save_p = b1.form_submit_button("Zapisz zmiany")
+        del_p = b2.form_submit_button("Usuń zawodnika")
+
+    if save_p:
+        if not e_name.strip() or not e_club or not e_game:
+            st.error("Imię i nazwisko, numer gry oraz klub są wymagane.")
+        elif not e_game.strip().isdigit():
+            st.error("Numer gry - wpisz samą liczbę, np. 26")
+        else:
+            update_player(
+                player_id,
+                e_name.strip(),
+                e_display.strip() or None,
+                e_pos,
+                e_nat.strip(),
+                int(e_game.strip()),
+                e_club.strip(),
+                e_orig.strip() if e_orig else None,
+            )
+            st.session_state["flash"] = f"Zapisano zmiany: {e_display.strip() or e_name.strip()}"
+            st.rerun()
+
+    if del_p:
+        if not confirm_p:
+            st.error("Zaznacz potwierdzenie, aby usunąć zawodnika.")
+        else:
+            delete_player(player_id)
+            st.session_state["flash"] = f"Usunięto zawodnika: {player['shown_name']}"
+            st.rerun()
+
+with st.expander("Edytuj lub usuń sezon"):
+    if not seasons:
+        st.write("Ten zawodnik nie ma jeszcze sezonów do edycji.")
+    else:
+        by_season = {s["id"]: dict(s) for s in seasons}
+        sid = st.selectbox(
+            "Sezon",
+            options=list(by_season),
+            format_func=lambda i: by_season[i]["season"],
+            key=f"es_sel_{player_id}",
+        )
+        s = by_season[sid]
+        value_plain = "" if s["value_eur"] is None else format_money(s["value_eur"]).replace(" €", "")
+
+        with st.form(f"edit_season_{sid}"):
+            f1, f2, f3, f4 = st.columns(4)
+            es_season = f1.text_input("Sezon", value=s["season"], key=f"es_season_{sid}")
+            es_age = f2.number_input("Wiek", min_value=14, max_value=50,
+                                     value=s["age"] if s["age"] is not None else 18,
+                                     step=1, key=f"es_age_{sid}")
+            es_ovr = f3.number_input("OVR", min_value=0, max_value=99,
+                                     value=s["ovr"] if s["ovr"] is not None else 60,
+                                     step=1, key=f"es_ovr_{sid}")
+            es_value = f4.text_input("Wartość (€)", value=value_plain, key=f"es_value_{sid}")
+
+            f5, f6, f7 = st.columns(3)
+            es_matches = f5.number_input("Mecze", min_value=0, value=s["matches"], step=1, key=f"es_matches_{sid}")
+            es_goals = f6.number_input(goals_label, min_value=0, value=s["goals"], step=1, key=f"es_goals_{sid}")
+            es_assists = f7.number_input("Asysty", min_value=0, value=s["assists"], step=1, key=f"es_assists_{sid}")
+
+            confirm_s = st.checkbox("Potwierdzam usunięcie tego sezonu", key=f"es_confirm_{sid}")
+            sb1, sb2, _ = st.columns([1, 1, 4])
+            save_s = sb1.form_submit_button("Zapisz zmiany")
+            del_s = sb2.form_submit_button("Usuń sezon")
+
+        if save_s:
+            if not es_season.strip():
+                st.error("Podaj sezon, np. 26/27.")
+            else:
+                try:
+                    es_value_eur = parse_money(es_value)
+                except ValueError:
+                    st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
+                else:
+                    try:
+                        update_season(sid, es_season.strip(), int(es_age), int(es_ovr), es_value_eur,
+                                      int(es_matches), int(es_goals), int(es_assists))
+                        st.session_state["flash"] = f"Zapisano zmiany w sezonie {es_season.strip()}"
+                        st.rerun()
+                    except sqlite3.IntegrityError:
+                        st.error(f"Ten zawodnik ma już zapisany sezon {es_season.strip()}.")
+
+        if del_s:
+            if not confirm_s:
+                st.error("Zaznacz potwierdzenie, aby usunąć sezon.")
+            else:
+                delete_season(sid)
+                st.session_state["flash"] = f"Usunięto sezon {s['season']}"
+                st.rerun()
