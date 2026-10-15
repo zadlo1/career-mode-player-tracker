@@ -22,6 +22,9 @@ CSS = """
 .pl-pos { display: inline-block; padding: 1px 7px; margin-left: 8px; border-radius: 4px;
           color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
 .pl-muted { opacity: .5; }
+.pl-total td { font-weight: 700; background: rgba(128,128,128,.12);
+               border-top: 2px solid rgba(128,128,128,.35); }
+.pl-total .pl-sub { font-weight: 400; }
 </style>
 """
 
@@ -106,9 +109,20 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
   <td class="pl-num">{int(r['assists'])}</td>
 </tr>"""
         )
+
     head = (
         f"<tr><th>Sezon</th><th class='pl-num'>Wiek</th><th class='pl-num'>OVR</th>"
         f"<th>Wartość</th><th class='pl-num'>Mecze</th><th class='pl-num'>{_text(goals_label)}</th>"
         f"<th class='pl-num'>Asysty</th></tr>"
     )
-    return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
+    total = f"""
+<tr class="pl-total">
+  <td>Razem<div class="pl-sub">OVR = maksimum</div></td>
+  <td></td>
+  <td class="pl-num">{ovr_badge(seasons['ovr'].max())}</td>
+  <td></td>
+  <td class="pl-num">{int(seasons['matches'].sum())}</td>
+  <td class="pl-num">{int(seasons['goals'].sum())}</td>
+  <td class="pl-num">{int(seasons['assists'].sum())}</td>
+</tr>"""
+    return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}{total}</table></div>"

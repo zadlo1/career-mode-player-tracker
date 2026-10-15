@@ -200,11 +200,5 @@ seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     st.html(seasons_table_html(raw, goals_label))
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Mecze razem", int(raw["matches"].sum()))
-    m2.metric(f"{goals_label} razem", int(raw["goals"].sum()))
-    m3.metric("Asysty razem", int(raw["assists"].sum()))
-    m4.metric("Max OVR", int(raw["ovr"].max()))
 else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
