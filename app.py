@@ -8,6 +8,7 @@ from db import (
     update_player, update_season,
 )
 from ui import format_money, players_table_html, seasons_table_html
+from season_utils import is_valid_season, next_season
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -36,6 +37,17 @@ def clean(value) -> str:
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return ""
     return str(value)
+
+def suggest_next_season(seasons) -> dict:
+    if not seasons:
+        return {"season": "", "age": 18, "ovr": 60, "value": ""}
+    last = seasons[-1]
+    return {
+        "season": next_season(last["season"]),
+        "age": min(last["age"] + 1, 50) if last["age"] is not None else 18,
+        "ovr": last["ovr"] if last["ovr"] is not None else 60,
+        "value": "" if last["value_eur"] is None else format_money(last["value_eur"]).replace(" €", ""),
+    }
 
 st.set_page_config(page_title="Career Mode DB", layout="wide")
 init_db()
@@ -177,25 +189,37 @@ else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
 
 sn = st.session_state.setdefault("season_form_n", 0)
+suggestion = suggest_next_season(seasons)
+fk = f"{player_id}_{sn}"
 
 with st.expander("Dodaj sezon"):
+    if seasons:
+        st.caption("Pola są wypełnione propozycją na podstawie poprzedniego sezonu, możesz je zmienić.")
     with st.form("add_season"):
         c1, c2, c3, c4 = st.columns(4)
-        season = c1.text_input("Sezon", placeholder="26/27", key=f"s_season_{sn}")
-        age = c2.number_input("Wiek", min_value=14, max_value=50, value=18, step=1, key=f"s_age_{sn}")
-        ovr = c3.number_input("OVR", min_value=0, max_value=99, value=60, step=1, key=f"s_ovr_{sn}")
-        value_text = c4.text_input("Wartość (€)", placeholder="3.000.000", key=f"s_value_{sn}")
+        season = c1.text_input(
+            "Sezon", value=suggestion["season"], placeholder="2026/27 lub 2026", key=f"s_season_{fk}"
+        )
+        age = c2.number_input(
+            "Wiek", min_value=14, max_value=50, value=suggestion["age"], step=1, key=f"s_age_{fk}"
+        )
+        ovr = c3.number_input(
+            "OVR", min_value=0, max_value=99, value=suggestion["ovr"], step=1, key=f"s_ovr_{fk}"
+        )
+        value_text = c4.text_input(
+            "Wartość (€)", value=suggestion["value"], placeholder="3.000.000", key=f"s_value_{fk}"
+        )
 
         c5, c6, c7 = st.columns(3)
-        matches = c5.number_input("Mecze", min_value=0, value=0, step=1, key=f"s_matches_{sn}")
-        goals = c6.number_input(goals_label, min_value=0, value=0, step=1, key=f"s_goals_{sn}")
-        assists = c7.number_input("Asysty", min_value=0, value=0, step=1, key=f"s_assists_{sn}")
+        matches = c5.number_input("Mecze", min_value=0, value=0, step=1, key=f"s_matches_{fk}")
+        goals = c6.number_input(goals_label, min_value=0, value=0, step=1, key=f"s_goals_{fk}")
+        assists = c7.number_input("Asysty", min_value=0, value=0, step=1, key=f"s_assists_{fk}")
 
         season_submitted = st.form_submit_button("Dodaj sezon")
 
     if season_submitted:
-        if not season.strip():
-            st.error("Podaj sezon, np. 26/27.")
+        if not is_valid_season(season):
+            st.error("Sezon wpisz jako 2026/27 (przełom lat) albo 2026 (jeden rok).")
         else:
             try:
                 value_eur = parse_money(value_text)
@@ -322,8 +346,8 @@ with st.expander("Edytuj lub usuń sezon"):
             del_s = sb2.form_submit_button("Usuń sezon")
 
         if save_s:
-            if not es_season.strip():
-                st.error("Podaj sezon, np. 26/27.")
+            if not is_valid_season(es_season):
+                st.error("Sezon wpisz jako 2026/27 (przełom lat) albo 2026 (jeden rok).")
             else:
                 try:
                     es_value_eur = parse_money(es_value)
@@ -334,6 +358,7 @@ with st.expander("Edytuj lub usuń sezon"):
                         update_season(sid, es_season.strip(), int(es_age), int(es_ovr), es_value_eur,
                                       int(es_matches), int(es_goals), int(es_assists))
                         st.session_state["flash"] = f"Zapisano zmiany w sezonie {es_season.strip()}"
+                        st.session_state["season_form_n"] += 1
                         st.rerun()
                     except sqlite3.IntegrityError:
                         st.error(f"Ten zawodnik ma już zapisany sezon {es_season.strip()}.")
@@ -344,4 +369,5 @@ with st.expander("Edytuj lub usuń sezon"):
             else:
                 delete_season(sid)
                 st.session_state["flash"] = f"Usunięto sezon {s['season']}"
+                st.session_state["season_form_n"] += 1
                 st.rerun()
