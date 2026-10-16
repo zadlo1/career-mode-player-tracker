@@ -61,6 +61,16 @@ def ovr_badge(value) -> str:
         return '<span class="pl-muted">-</span>'
     return f'<span class="pl-ovr" style="background:{rating_color(value)}">{int(value)}</span>'
 
+
+def _pos_badge(position) -> str:
+    if position is None or (not isinstance(position, str) and pd.isna(position)):
+        return '<span class="pl-muted">-</span>'
+    return (
+        f'<span class="pl-pos" style="background:{position_color(position)};margin-left:0">'
+        f"{_text(position)}</span>"
+    )
+
+
 @lru_cache(maxsize=None)
 def _flag_data_uri(code: str):
     path = FLAGS_DIR / f"{code.lower()}.svg"
@@ -89,6 +99,7 @@ def nationality_html(code) -> str:
             flag = f'<span class="pl-flag fl-{code.lower()}"></span>'
         return flag + html.escape(country_name(code))
     return html.escape(code)
+
 
 def players_table_html(view: pd.DataFrame) -> str:
     rows = []
@@ -129,6 +140,8 @@ def players_table_html(view: pd.DataFrame) -> str:
     )
     flags = flag_css(view["nationality"].dropna().unique())
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
+
+
 def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
     rows = []
     for r in seasons.to_dict("records"):
@@ -136,6 +149,7 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
             f"""
 <tr>
   <td class="pl-name">{_text(r['season'])}</td>
+  <td class="pl-num">{_pos_badge(r['position'])}</td>
   <td class="pl-num">{_num(r['age'])}</td>
   <td class="pl-num">{ovr_badge(r['ovr'])}</td>
   <td>{format_money(r['value_eur'])}</td>
@@ -146,13 +160,14 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
         )
 
     head = (
-        f"<tr><th>Sezon</th><th class='pl-num'>Wiek</th><th class='pl-num'>OVR</th>"
-        f"<th>Wartość</th><th class='pl-num'>Mecze</th><th class='pl-num'>{_text(goals_label)}</th>"
-        f"<th class='pl-num'>Asysty</th></tr>"
+        f"<tr><th>Sezon</th><th class='pl-num'>Poz.</th><th class='pl-num'>Wiek</th>"
+        f"<th class='pl-num'>OVR</th><th>Wartość</th><th class='pl-num'>Mecze</th>"
+        f"<th class='pl-num'>{_text(goals_label)}</th><th class='pl-num'>Asysty</th></tr>"
     )
     total = f"""
 <tr class="pl-total">
   <td>Razem<div class="pl-sub">OVR = maksimum</div></td>
+  <td></td>
   <td></td>
   <td class="pl-num">{ovr_badge(seasons['ovr'].max())}</td>
   <td></td>

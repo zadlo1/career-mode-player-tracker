@@ -1,5 +1,6 @@
-﻿import sqlite3
+import sqlite3
 from pathlib import Path
+
 from countries import COUNTRIES, NAME_TO_CODE
 
 DB_PATH = Path(__file__).parent / "data" / "career.db"
@@ -21,9 +22,10 @@ CREATE TABLE IF NOT EXISTS seasons (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     player_id  INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     season     TEXT    NOT NULL,
+    position   TEXT,
     age        INTEGER,
     ovr        INTEGER,
-    value_eur    INTEGER,
+    value_eur  INTEGER,
     matches    INTEGER NOT NULL DEFAULT 0,
     goals      INTEGER NOT NULL DEFAULT 0,
     assists    INTEGER NOT NULL DEFAULT 0,
@@ -43,7 +45,21 @@ def get_connection() -> sqlite3.Connection:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        _migrate_season_position(conn)
         _migrate_nationalities(conn)
+
+
+def _migrate_season_position(conn: sqlite3.Connection) -> None:
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(seasons)").fetchall()]
+    if "position" not in columns:
+        conn.execute("ALTER TABLE seasons ADD COLUMN position TEXT")
+        conn.execute(
+            """
+            UPDATE seasons
+            SET position = (SELECT p.position FROM players p WHERE p.id = seasons.player_id)
+            WHERE position IS NULL
+            """
+        )
 
 
 def _migrate_nationalities(conn: sqlite3.Connection) -> None:
@@ -64,6 +80,7 @@ def _migrate_nationalities(conn: sqlite3.Connection) -> None:
                 (code, value),
             )
 
+
 def add_player(name, display_name, position, nationality, game, managed_club, original_club) -> int:
     with get_connection() as conn:
         cur = conn.execute(
@@ -83,7 +100,9 @@ def get_players() -> list[sqlite3.Row]:
             SELECT p.id, p.name,
                    COALESCE(NULLIF(TRIM(p.display_name), ''), p.name) AS shown_name,
                    p.display_name,
-                   p.position, p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
+                   COALESCE(NULLIF(TRIM(ls.position), ''), p.position) AS position,
+                   p.position AS start_position,
+                   p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
                    ls.age, ls.ovr, ls.value_eur,
                    agg.max_ovr, agg.matches, agg.goals, agg.assists
             FROM players p
@@ -106,27 +125,30 @@ def get_players() -> list[sqlite3.Row]:
             """
         ).fetchall()
 
-def add_season(player_id, season, age, ovr, value_eur, matches, goals, assists) -> None:
+
+def add_season(player_id, season, position, age, ovr, value_eur, matches, goals, assists) -> None:
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO seasons (player_id, season, age, ovr, value_eur, matches, goals, assists)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO seasons (player_id, season, position, age, ovr, value_eur, matches, goals, assists)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (player_id, season, age, ovr, value_eur, matches, goals, assists),
+            (player_id, season, position, age, ovr, value_eur, matches, goals, assists),
         )
+
 
 def get_seasons(player_id) -> list[sqlite3.Row]:
     with get_connection() as conn:
         return conn.execute(
             """
-            SELECT id, season, age, ovr, value_eur, matches, goals, assists
+            SELECT id, season, position, age, ovr, value_eur, matches, goals, assists
             FROM seasons
             WHERE player_id = ?
             ORDER BY season
             """,
             (player_id,),
         ).fetchall()
+
 
 def get_games() -> list[int]:
     with get_connection() as conn:
@@ -135,12 +157,14 @@ def get_games() -> list[int]:
         ).fetchall()
         return [r["game"] for r in rows]
 
+
 def get_clubs() -> list[str]:
     with get_connection() as conn:
         rows = conn.execute(
             "SELECT DISTINCT managed_club FROM players ORDER BY managed_club"
         ).fetchall()
         return [r["managed_club"] for r in rows]
+
 
 def get_all_clubs() -> list[str]:
     with get_connection() as conn:
@@ -155,12 +179,14 @@ def get_all_clubs() -> list[str]:
         ).fetchall()
         return [r["club"] for r in rows]
 
+
 def set_favorite(player_id, value) -> None:
     with get_connection() as conn:
         conn.execute(
             "UPDATE players SET is_favorite = ? WHERE id = ?",
             (1 if value else 0, player_id),
         )
+
 
 def update_player(player_id, name, display_name, position, nationality,
                   game, managed_club, original_club) -> None:
@@ -181,16 +207,16 @@ def delete_player(player_id) -> None:
         conn.execute("DELETE FROM players WHERE id = ?", (player_id,))
 
 
-def update_season(season_id, season, age, ovr, value_eur, matches, goals, assists) -> None:
+def update_season(season_id, season, position, age, ovr, value_eur, matches, goals, assists) -> None:
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE seasons
-            SET season = ?, age = ?, ovr = ?, value_eur = ?,
+            SET season = ?, position = ?, age = ?, ovr = ?, value_eur = ?,
                 matches = ?, goals = ?, assists = ?
             WHERE id = ?
             """,
-            (season, age, ovr, value_eur, matches, goals, assists, season_id),
+            (season, position, age, ovr, value_eur, matches, goals, assists, season_id),
         )
 
 

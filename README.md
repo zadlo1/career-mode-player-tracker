@@ -1,19 +1,33 @@
-﻿# Career Mode DB
+# Career Mode DB
 
 Aplikacja do prowadzenia własnej bazy zawodników z trybu kariery w EA FC.
-Dla każdego zawodnika zapisujesz sezon po sezonie: klub, wiek, OVR,
+Dla każdego zawodnika zapisujesz sezon po sezonie: pozycję, wiek, OVR,
 wartość transferową oraz mecze, gole (lub czyste konta) i asysty.
 
 Dane trzymane są lokalnie w pliku SQLite (`data/career.db`) i nie są
 częścią repozytorium.
 
 ## Funkcje
-- wspólna baza dla wszystkich karier z filtrowaniem po grze i klubie
-- ścieżka kariery zawodnika z podsumowaniem statystyk
-- ulubieni zawodnicy
-- wykres rozwoju OVR
-- rankingi
+- wspólna baza dla wszystkich karier: filtrowanie po grze i klubie, wyszukiwarka, sortowanie
+- zawodnik: wyświetlana nazwa, narodowość z flagą, klub początkowy, ulubieni
+- sezon po sezonie: pozycja, wiek, OVR, wartość, mecze, gole (lub czyste konta), asysty
+- propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
+- podsumowanie sezonów i wykres rozwoju OVR
+- edycja i usuwanie zawodników oraz sezonów
+
+## Planowane
+- rankingi (najlepsi strzelcy, najdroższy zawodnik, największy rozwój)
+- wgrywanie własnych grafik (zdjęcia zawodników, loga klubów i lig)
 
 ## Uruchomienie
     pip install -r requirements.txt
     streamlit run app.py
+
+Flagi państw są w `assets/flags`. Gdyby folder był pusty, pobierzesz je poleceniem:
+
+    python download_flags.py
+
+## Licencje
+Flagi pochodzą z projektu [flag-icons](https://github.com/lipis/flag-icons)
+na licencji MIT (kopia licencji w `assets/flags/LICENSE-flag-icons.txt`).
+Projekt nie zawiera żadnych grafik ani danych należących do EA.

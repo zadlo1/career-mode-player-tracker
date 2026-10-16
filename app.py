@@ -1,4 +1,4 @@
-﻿import sqlite3
+import sqlite3
 
 import pandas as pd
 import streamlit as st
@@ -39,16 +39,28 @@ def clean(value) -> str:
         return ""
     return str(value)
 
-def suggest_next_season(seasons) -> dict:
+def suggest_next_season(seasons, default_position: str) -> dict:
     if not seasons:
-        return {"season": "", "age": 18, "ovr": 60, "value": ""}
+        return {"season": "", "position": default_position, "age": 18, "ovr": 60, "value": ""}
     last = seasons[-1]
     return {
         "season": next_season(last["season"]),
+        "position": last["position"] or default_position,
         "age": min(last["age"] + 1, 50) if last["age"] is not None else 18,
         "ovr": last["ovr"] if last["ovr"] is not None else 60,
         "value": "" if last["value_eur"] is None else format_money(last["value_eur"]).replace(" €", ""),
     }
+
+
+def position_index(position, options=POSITIONS) -> int:
+    return options.index(position) if position in options else 0
+
+
+def season_position_options(player_position: str) -> list:
+    if player_position == "GK":
+        return ["GK"]
+    return [p for p in POSITIONS if p != "GK"]
+
 
 st.set_page_config(page_title="Career Mode DB", layout="wide")
 init_db()
@@ -66,7 +78,6 @@ fav_only = st.sidebar.checkbox("Tylko ulubieni")
 sort_label = st.sidebar.selectbox("Sortuj po", list(SORT_OPTIONS), index=1)
 descending = st.sidebar.checkbox("Malejąco", value=True)
 
-st.subheader("Dodaj zawodnika")
 pn = st.session_state.setdefault("player_form_n", 0)
 
 with st.expander("Dodaj zawodnika"):
@@ -182,6 +193,7 @@ player_id = st.selectbox(
 )
 player = by_id[player_id]
 goals_label = "Czyste konta" if player["position"] == "GK" else "Gole"
+season_positions = season_position_options(player["position"])
 
 is_fav = bool(player["is_favorite"])
 fav = st.checkbox("Ulubiony", value=is_fav, key=f"fav_{player_id}")
@@ -192,6 +204,7 @@ if fav != is_fav:
 seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
+    raw["position"] = raw["position"].fillna(player["start_position"])
     st.html(seasons_table_html(raw, goals_label))
 
     if len(raw) >= 2:
@@ -203,16 +216,23 @@ else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
 
 sn = st.session_state.setdefault("season_form_n", 0)
-suggestion = suggest_next_season(seasons)
+suggestion = suggest_next_season(seasons, player["position"])
 fk = f"{player_id}_{sn}"
 
 with st.expander("Dodaj sezon"):
     if seasons:
         st.caption("Pola są wypełnione propozycją na podstawie poprzedniego sezonu, możesz je zmienić.")
+
     with st.form("add_season"):
-        c1, c2, c3, c4 = st.columns(4)
+        c1, cp, c2, c3, c4 = st.columns(5)
         season = c1.text_input(
             "Sezon", value=suggestion["season"], placeholder="2026/27 lub 2026", key=f"s_season_{fk}"
+        )
+        s_position = cp.selectbox(
+            "Pozycja",
+            season_positions,
+            index=position_index(suggestion["position"], season_positions),
+            key=f"s_pos_{fk}",
         )
         age = c2.number_input(
             "Wiek", min_value=14, max_value=50, value=suggestion["age"], step=1, key=f"s_age_{fk}"
@@ -241,7 +261,7 @@ with st.expander("Dodaj sezon"):
                 st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
             else:
                 try:
-                    add_season(player_id, season.strip(), int(age), int(ovr), value_eur,
+                    add_season(player_id, season.strip(), s_position, int(age), int(ovr), value_eur,
                                int(matches), int(goals), int(assists))
                     st.session_state["flash"] = f"Dodano sezon: {season.strip()}"
                     st.session_state["season_form_n"] += 1
@@ -255,7 +275,6 @@ with st.expander("Edytuj lub usuń zawodnika"):
     all_clubs = get_all_clubs()
     orig = clean(player["original_club"])
     nat_value = clean(player["nationality"])
-    pos_index = POSITIONS.index(player["position"]) if player["position"] in POSITIONS else 0
 
     with st.form(f"edit_player_{player_id}"):
         e1, e2 = st.columns(2)
@@ -263,7 +282,12 @@ with st.expander("Edytuj lub usuń zawodnika"):
         e_display = e2.text_input("Wyświetlana nazwa (opcjonalnie)", value=clean(player["display_name"]), key=f"e_disp_{player_id}")
 
         e3, e4 = st.columns(2)
-        e_pos = e3.selectbox("Pozycja", POSITIONS, index=pos_index, key=f"e_pos_{player_id}")
+        e_pos = e3.selectbox(
+            "Pozycja początkowa",
+            POSITIONS,
+            index=position_index(player["start_position"]),
+            key=f"e_pos_{player_id}",
+        )
         e_nat = e4.selectbox(
             "Narodowość",
             options=CODES,
@@ -346,9 +370,18 @@ with st.expander("Edytuj lub usuń sezon"):
         s = by_season[sid]
         value_plain = "" if s["value_eur"] is None else format_money(s["value_eur"]).replace(" €", "")
 
+        current_pos = s["position"] or player["position"]
+        edit_positions = season_positions if current_pos in season_positions else [current_pos] + season_positions
+
         with st.form(f"edit_season_{sid}"):
-            f1, f2, f3, f4 = st.columns(4)
+            f1, fp, f2, f3, f4 = st.columns(5)
             es_season = f1.text_input("Sezon", value=s["season"], key=f"es_season_{sid}")
+            es_position = fp.selectbox(
+                "Pozycja",
+                edit_positions,
+                index=position_index(current_pos, edit_positions),
+                key=f"es_pos_{sid}",
+            )
             es_age = f2.number_input("Wiek", min_value=14, max_value=50,
                                      value=s["age"] if s["age"] is not None else 18,
                                      step=1, key=f"es_age_{sid}")
@@ -377,8 +410,8 @@ with st.expander("Edytuj lub usuń sezon"):
                     st.error("Wartość wpisz samymi cyframi, np. 3.000.000 lub 4000000")
                 else:
                     try:
-                        update_season(sid, es_season.strip(), int(es_age), int(es_ovr), es_value_eur,
-                                      int(es_matches), int(es_goals), int(es_assists))
+                        update_season(sid, es_season.strip(), es_position, int(es_age), int(es_ovr),
+                                      es_value_eur, int(es_matches), int(es_goals), int(es_assists))
                         st.session_state["flash"] = f"Zapisano zmiany w sezonie {es_season.strip()}"
                         st.session_state["season_form_n"] += 1
                         st.rerun()
