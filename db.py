@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS players (
     game          INTEGER NOT NULL,
     managed_club  TEXT    NOT NULL,
     original_club TEXT,
-    is_favorite   INTEGER NOT NULL DEFAULT 0
+    is_favorite   INTEGER NOT NULL DEFAULT 0,
+    is_generated  INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS seasons (
@@ -46,6 +47,7 @@ def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(SCHEMA)
         _migrate_season_position(conn)
+        _migrate_player_generated(conn)
         _migrate_nationalities(conn)
 
 
@@ -60,6 +62,12 @@ def _migrate_season_position(conn: sqlite3.Connection) -> None:
             WHERE position IS NULL
             """
         )
+
+
+def _migrate_player_generated(conn: sqlite3.Connection) -> None:
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(players)").fetchall()]
+    if "is_generated" not in columns:
+        conn.execute("ALTER TABLE players ADD COLUMN is_generated INTEGER NOT NULL DEFAULT 0")
 
 
 def _migrate_nationalities(conn: sqlite3.Connection) -> None:
@@ -81,14 +89,17 @@ def _migrate_nationalities(conn: sqlite3.Connection) -> None:
             )
 
 
-def add_player(name, display_name, position, nationality, game, managed_club, original_club) -> int:
+def add_player(name, display_name, position, nationality, game, managed_club,
+               original_club, is_generated=False) -> int:
     with get_connection() as conn:
         cur = conn.execute(
             """
-            INSERT INTO players (name, display_name, position, nationality, game, managed_club, original_club)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO players (name, display_name, position, nationality, game,
+                                 managed_club, original_club, is_generated)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (name, display_name, position, nationality, game, managed_club, original_club),
+            (name, display_name, position, nationality, game, managed_club,
+             original_club, 1 if is_generated else 0),
         )
         return cur.lastrowid
 
@@ -103,6 +114,7 @@ def get_players() -> list[sqlite3.Row]:
                    COALESCE(NULLIF(TRIM(ls.position), ''), p.position) AS position,
                    p.position AS start_position,
                    p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
+                   p.is_generated,
                    ls.age, ls.ovr, ls.value_eur,
                    agg.max_ovr, agg.matches, agg.goals, agg.assists
             FROM players p
@@ -189,16 +201,17 @@ def set_favorite(player_id, value) -> None:
 
 
 def update_player(player_id, name, display_name, position, nationality,
-                  game, managed_club, original_club) -> None:
+                  game, managed_club, original_club, is_generated=False) -> None:
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE players
             SET name = ?, display_name = ?, position = ?, nationality = ?,
-                game = ?, managed_club = ?, original_club = ?
+                game = ?, managed_club = ?, original_club = ?, is_generated = ?
             WHERE id = ?
             """,
-            (name, display_name, position, nationality, game, managed_club, original_club, player_id),
+            (name, display_name, position, nationality, game, managed_club,
+             original_club, 1 if is_generated else 0, player_id),
         )
 
 

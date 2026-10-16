@@ -75,6 +75,9 @@ search = st.sidebar.text_input("Szukaj zawodnika")
 game_filter = st.sidebar.selectbox("Gra", options=get_games(), index=None, placeholder="Wszystkie")
 club_filter = st.sidebar.selectbox("Mój klub", options=get_clubs(), index=None, placeholder="Wszystkie")
 fav_only = st.sidebar.checkbox("Tylko ulubieni")
+type_filter = st.sidebar.selectbox(
+    "Typ zawodnika", ["Wszyscy", "Prawdziwi", "Wygenerowani przez grę"]
+)
 sort_label = st.sidebar.selectbox("Sortuj po", list(SORT_OPTIONS), index=1)
 descending = st.sidebar.checkbox("Malejąco", value=True)
 
@@ -123,6 +126,12 @@ with st.expander("Dodaj zawodnika"):
             key=f"p_orig_{pn}",
         )
 
+        is_generated = st.checkbox(
+            "Zawodnik wygenerowany przez grę (nie istnieje naprawdę)",
+            help="Np. junior z akademii albo zawodnik bez licencji.",
+            key=f"p_gen_{pn}",
+        )
+
         submitted = st.form_submit_button("Dodaj zawodnika")
 
     if submitted:
@@ -139,6 +148,7 @@ with st.expander("Dodaj zawodnika"):
                 int(game.strip()),
                 managed_club.strip(),
                 original_club.strip() if original_club else None,
+                is_generated,
             )
             st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
             st.session_state["player_form_n"] += 1
@@ -167,6 +177,10 @@ if club_filter is not None:
     view = view[view["managed_club"] == club_filter]
 if fav_only:
     view = view[view["is_favorite"] == 1]
+if type_filter == "Prawdziwi":
+    view = view[view["is_generated"] == 0]
+elif type_filter == "Wygenerowani przez grę":
+    view = view[view["is_generated"] == 1]
 
 if view.empty:
     st.info("Brak zawodników pasujących do filtrów.")
@@ -321,6 +335,13 @@ with st.expander("Edytuj lub usuń zawodnika"):
             key=f"e_orig_{player_id}",
         )
 
+        e_gen = st.checkbox(
+            "Zawodnik wygenerowany przez grę (nie istnieje naprawdę)",
+            value=bool(player["is_generated"]),
+            help="Np. junior z akademii albo zawodnik bez licencji.",
+            key=f"e_gen_{player_id}",
+        )
+
         confirm_p = st.checkbox(
             "Potwierdzam usunięcie zawodnika wraz ze wszystkimi jego sezonami",
             key=f"e_confirm_{player_id}",
@@ -344,6 +365,7 @@ with st.expander("Edytuj lub usuń zawodnika"):
                 int(e_game.strip()),
                 e_club.strip(),
                 e_orig.strip() if e_orig else None,
+                e_gen,
             )
             st.session_state["flash"] = f"Zapisano zmiany: {e_display.strip() or e_name.strip()}"
             st.rerun()

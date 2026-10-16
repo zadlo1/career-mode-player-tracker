@@ -10,6 +10,7 @@ częścią repozytorium.
 ## Funkcje
 - wspólna baza dla wszystkich karier: filtrowanie po grze i klubie, wyszukiwarka, sortowanie
 - zawodnik: wyświetlana nazwa, narodowość z flagą, klub początkowy, ulubieni
+- oznaczanie zawodników wygenerowanych przez grę (juniorzy, brak licencji) i filtr po typie
 - sezon po sezonie: pozycja, wiek, OVR, wartość, mecze, gole (lub czyste konta), asysty
 - propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
 - podsumowanie sezonów i wykres rozwoju OVR

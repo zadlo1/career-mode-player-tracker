@@ -28,6 +28,9 @@ CSS = """
 .pl-pos { display: inline-block; padding: 1px 7px; margin-left: 8px; border-radius: 4px;
           color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
 .pl-muted { opacity: .5; }
+.pl-gen { display: inline-block; padding: 0 6px; margin-left: 6px; border-radius: 4px;
+          border: 1px solid rgba(128,128,128,.6); font-size: 10px; font-weight: 600;
+          opacity: .75; vertical-align: middle; }
 .pl-total td { font-weight: 700; background: rgba(128,128,128,.12);
                border-top: 2px solid rgba(128,128,128,.35); }
 .pl-total .pl-sub { font-weight: 400; }
@@ -105,6 +108,11 @@ def players_table_html(view: pd.DataFrame) -> str:
     rows = []
     for r in view.to_dict("records"):
         star = '<span class="pl-star">★</span>' if r["is_favorite"] else ""
+        generated = (
+            '<span class="pl-gen" title="Zawodnik wygenerowany przez grę (nie istnieje naprawdę)">'
+            "wygenerowany</span>"
+            if r["is_generated"] else ""
+        )
         full = f"{_text(r['name'])} · " if r["name"] != r["shown_name"] else ""
         sub_player = full + nationality_html(r["nationality"])
 
@@ -117,7 +125,7 @@ def players_table_html(view: pd.DataFrame) -> str:
             f"""
 <tr>
   <td>
-    <div class="pl-name">{star}{_text(r['shown_name'])}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span></div>
+    <div class="pl-name">{star}{_text(r['shown_name'])}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
     <div class="pl-sub">{sub_player}</div>
   </td>
   <td class="pl-num">{_num(r['age'])}</td>
