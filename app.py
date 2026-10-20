@@ -7,7 +7,8 @@ from db import (
     get_games, get_players, get_seasons, init_db, set_favorite,
     update_player, update_season,
 )
-from ui import format_money, players_table_html, seasons_table_html
+from club_logos import delete_logo, save_logo
+from ui import format_money, logo_preview_html, players_table_html, seasons_table_html
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import ovr_chart
@@ -160,6 +161,47 @@ with st.expander("Dodaj zawodnika"):
             st.session_state["flash"] = f"Dodano: {display_name.strip() or name.strip()}"
             st.session_state["player_form_n"] += 1
             st.rerun()
+
+ln = st.session_state.setdefault("logo_form_n", 0)
+
+with st.expander("Loga klubów"):
+    logo_clubs = get_all_clubs()
+    if not logo_clubs:
+        st.write("Najpierw dodaj zawodnika, żeby pojawił się klub.")
+    else:
+        logo_club = st.selectbox("Klub", logo_clubs, key="logo_club")
+        st.html(logo_preview_html(logo_club))
+
+        with st.form(f"logo_form_{ln}"):
+            logo_file = st.file_uploader(
+                "Wgraj logo (PNG, JPG, WebP lub SVG, do 2 MB)",
+                type=["png", "jpg", "jpeg", "webp", "svg"],
+                key=f"logo_file_{ln}",
+            )
+            lb1, lb2, _ = st.columns([1, 1, 4])
+            save_logo_clicked = lb1.form_submit_button("Zapisz logo")
+            delete_logo_clicked = lb2.form_submit_button("Usuń logo")
+
+        if save_logo_clicked:
+            if logo_file is None:
+                st.error("Wybierz plik z logo.")
+            else:
+                try:
+                    save_logo(logo_club, logo_file.getvalue(), logo_file.name)
+                except ValueError as error:
+                    st.error(str(error))
+                else:
+                    st.session_state["flash"] = f"Zapisano logo: {logo_club}"
+                    st.session_state["logo_form_n"] += 1
+                    st.rerun()
+
+        if delete_logo_clicked:
+            if delete_logo(logo_club):
+                st.session_state["flash"] = f"Usunięto logo: {logo_club}"
+                st.session_state["logo_form_n"] += 1
+                st.rerun()
+            else:
+                st.info("Ten klub nie ma zapisanego logo.")
 
 st.subheader("Zawodnicy")
 players = get_players()

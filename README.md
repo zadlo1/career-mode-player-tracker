@@ -4,8 +4,8 @@ Aplikacja do prowadzenia własnej bazy zawodników z trybu kariery w EA FC.
 Dla każdego zawodnika zapisujesz sezon po sezonie: pozycję, wiek, OVR,
 wartość transferową oraz mecze, gole (lub czyste konta) i asysty.
 
-Dane trzymane są lokalnie w pliku SQLite (`data/career.db`) i nie są
-częścią repozytorium.
+Dane trzymane są lokalnie w pliku SQLite (`data/career.db`), a wgrane loga
+w `data/images/`. Nic z tego nie jest częścią repozytorium.
 
 ## Funkcje
 - wspólna baza dla wszystkich karier: filtrowanie po grze i klubie, wyszukiwarka, sortowanie
@@ -16,9 +16,10 @@ częścią repozytorium.
 - podsumowanie sezonów i wykres rozwoju OVR
 - edycja i usuwanie zawodników oraz sezonów
 - rankingi (top 10): strzelcy, czyste konta, asysty, najdroższy zawodnik, największy rozwój OVR
+- loga klubów wgrywane przez użytkownika (PNG, JPG, WebP, SVG), pokazywane na liście i w rankingach
 
 ## Planowane
-- wgrywanie własnych grafik (zdjęcia zawodników, loga klubów i lig)
+- zdjęcia zawodników i loga lig (wgrywane lokalnie, tak jak loga klubów)
 
 ## Uruchomienie
     pip install -r requirements.txt

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from club_logos import logo_data_uri, slugify
 from countries import COUNTRIES, country_name
 from ratings import position_color, rating_color
 
@@ -37,6 +38,10 @@ CSS = """
 .pl-flag { display: inline-block; width: 18px; height: 13px; margin-right: 6px;
            vertical-align: -2px; border-radius: 2px; background-size: cover;
            background-position: center; box-shadow: 0 0 0 1px rgba(128,128,128,.35); }
+.pl-logo { display: inline-block; width: 20px; height: 20px; margin-right: 8px;
+           vertical-align: -5px; background-size: contain; background-repeat: no-repeat;
+           background-position: center; }
+.pl-logo-big { width: 56px; height: 56px; margin-right: 0; vertical-align: middle; }
 </style>
 """
 
@@ -132,7 +137,7 @@ def players_table_html(view: pd.DataFrame) -> str:
   <td class="pl-num">{ovr_badge(r['max_ovr'])}</td>
   <td>{format_money(r['value_eur'])}</td>
   <td>
-    <div class="pl-name">{_text(r['managed_club'])}</div>
+    <div class="pl-name">{club_logo_html(r['managed_club'])}{_text(r['managed_club'])}</div>
     <div class="pl-sub">{sub_club}</div>
   </td>
   <td class="pl-num">{int(r['matches'])}</td>
@@ -146,7 +151,7 @@ def players_table_html(view: pd.DataFrame) -> str:
         "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )
-    flags = flag_css(view["nationality"].dropna().unique())
+    flags = flag_css(view["nationality"].dropna().unique()) + club_logo_css(view["managed_club"].unique())
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
 
 
@@ -204,7 +209,7 @@ def ranking_table_html(df: pd.DataFrame, value_header: str, detail_header: str =
     <div class="pl-sub">{nationality_html(r['nationality'])}</div>
   </td>
   <td>
-    <div class="pl-name">{_text(r['managed_club'])}</div>
+    <div class="pl-name">{club_logo_html(r['managed_club'])}{_text(r['managed_club'])}</div>
     <div class="pl-sub">FC {_text(r['game'])}</div>
   </td>
   <td class="pl-num pl-name">{_text(r['value_text'])}</td>
@@ -217,5 +222,28 @@ def ranking_table_html(df: pd.DataFrame, value_header: str, detail_header: str =
         "<tr><th class='pl-num'>#</th><th>Zawodnik</th><th>Klub</th>"
         f"<th class='pl-num'>{_text(value_header)}</th>{detail_head}</tr>"
     )
-    flags = flag_css(df["nationality"].dropna().unique())
+    flags = flag_css(df["nationality"].dropna().unique()) + club_logo_css(df["managed_club"].unique())
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
+
+
+def club_logo_css(clubs) -> str:
+    rules = []
+    for club in sorted({c for c in clubs if isinstance(c, str) and c.strip()}):
+        uri = logo_data_uri(club)
+        if uri:
+            rules.append(f".cl-{slugify(club)} {{ background-image: url('{uri}'); }}")
+    return "<style>" + "".join(rules) + "</style>"
+
+
+def club_logo_html(club, big: bool = False) -> str:
+    if not isinstance(club, str) or not club.strip() or not logo_data_uri(club):
+        return ""
+    size = "pl-logo pl-logo-big" if big else "pl-logo"
+    return f'<span class="{size} cl-{slugify(club)}" title="{_text(club)}"></span>'
+
+
+def logo_preview_html(club: str) -> str:
+    logo = club_logo_html(club, big=True)
+    if not logo:
+        return f"{CSS}<span class='pl-muted'>Ten klub nie ma jeszcze logo.</span>"
+    return f"{CSS}{club_logo_css([club])}{logo}"
