@@ -268,7 +268,7 @@ seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     raw["position"] = raw["position"].fillna(player["start_position"])
-    st.html(seasons_table_html(raw, goals_label))
+    st.html(seasons_table_html(raw, goals_label, goalkeeper=player["position"] == "GK"))
 
     if len(raw) >= 2:
         st.caption("Rozwój OVR")

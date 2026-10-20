@@ -2,17 +2,23 @@
 import streamlit as st
 
 from db import get_all_seasons, get_players
+from stats import format_rate, per_match
 from ui import format_money, ranking_table_html
 
 TOP_N = 10
+DEFAULT_MIN_MATCHES = 10
+
+
+def _plural(n: int, one: str, few: str, many: str) -> str:
+    if n == 1:
+        return f"1 {one}"
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return f"{n} {few}"
+    return f"{n} {many}"
 
 
 def _matches_text(n: int) -> str:
-    if n == 1:
-        return "1 mecz"
-    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
-        return f"{n} mecze"
-    return f"{n} meczów"
+    return _plural(n, "mecz", "mecze", "meczów")
 
 
 def _load(game_filter, club_filter, fav_only, type_filter):
@@ -67,6 +73,34 @@ def _clean_sheets(players, seasons):
 
 def _assists(players, seasons):
     return _count_ranking(players, seasons, "assists")
+
+
+def _rate_ranking(players, seasons, column, min_matches, nouns, percent=False) -> pd.DataFrame:
+    df = _totals(players, seasons, column)
+    df = df[(df["games"] >= min_matches) & (df["total"] > 0)]
+    if df.empty:
+        return df
+    df = df.assign(rate=per_match(df["total"], df["games"]))
+    df = df.sort_values(["rate", "games", "shown_name"], ascending=[False, False, True]).head(TOP_N).copy()
+    df["value_text"] = df["rate"].map(lambda v: format_rate(v, percent))
+    df["detail_text"] = df.apply(
+        lambda r: f"{_plural(int(r['total']), *nouns)} · {_matches_text(int(r['games']))}", axis=1
+    )
+    return df
+
+
+def _goals_per_match(players, seasons, min_matches):
+    return _rate_ranking(players[players["position"] != "GK"], seasons, "goals", min_matches,
+                         ("gol", "gole", "goli"))
+
+
+def _clean_sheet_rate(players, seasons, min_matches):
+    return _rate_ranking(players[players["position"] == "GK"], seasons, "goals", min_matches,
+                         ("czyste konto", "czyste konta", "czystych kont"), percent=True)
+
+
+def _assists_per_match(players, seasons, min_matches):
+    return _rate_ranking(players, seasons, "assists", min_matches, ("asysta", "asysty", "asyst"))
 
 
 def _most_valuable(players: pd.DataFrame, seasons: pd.DataFrame) -> pd.DataFrame:
@@ -149,10 +183,21 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
         st.info("Brak danych do rankingów. Dodaj zawodników i ich sezony.")
         return
 
+    min_matches = st.number_input(
+        "Minimum meczów w rankingach „na mecz”",
+        min_value=1,
+        value=DEFAULT_MIN_MATCHES,
+        step=1,
+        help="Żeby zawodnik z 1 meczem i 1 golem nie wygrywał rankingu.",
+    )
+
     rankings = [
         ("Strzelcy", _scorers(players, seasons), "Gole", "Mecze"),
+        ("Gole na mecz", _goals_per_match(players, seasons, min_matches), "Gole / mecz", "Bilans"),
         ("Czyste konta", _clean_sheets(players, seasons), "Czyste konta", "Mecze"),
+        ("Czyste konta %", _clean_sheet_rate(players, seasons, min_matches), "% meczów", "Bilans"),
         ("Asysty", _assists(players, seasons), "Asysty", "Mecze"),
+        ("Asysty na mecz", _assists_per_match(players, seasons, min_matches), "Asysty / mecz", "Bilans"),
         ("Najdroższy", _most_valuable(players, seasons), "Najwyższa wartość", "Kiedy"),
         ("Największy rozwój", _growth(players, seasons), "Zmiana OVR", "Przebieg"),
     ]

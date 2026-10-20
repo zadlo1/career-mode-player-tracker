@@ -8,6 +8,7 @@ import pandas as pd
 from club_logos import logo_data_uri, slugify
 from countries import COUNTRIES, country_name
 from ratings import position_color, rating_color
+from stats import format_rate, per_match
 
 FLAGS_DIR = Path(__file__).parent / "assets" / "flags"
 
@@ -155,9 +156,16 @@ def players_table_html(view: pd.DataFrame) -> str:
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
 
 
-def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
+def _rate(value, percent: bool = False) -> str:
+    text = format_rate(value, percent)
+    return '<span class="pl-muted">-</span>' if text == "-" else text
+
+
+def seasons_table_html(seasons: pd.DataFrame, goals_label: str, goalkeeper: bool = False) -> str:
+    goals_rate = per_match(seasons["goals"], seasons["matches"])
+    assists_rate = per_match(seasons["assists"], seasons["matches"])
     rows = []
-    for r in seasons.to_dict("records"):
+    for r, g_rate, a_rate in zip(seasons.to_dict("records"), goals_rate, assists_rate):
         rows.append(
             f"""
 <tr>
@@ -169,14 +177,19 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
   <td class="pl-num">{int(r['matches'])}</td>
   <td class="pl-num">{int(r['goals'])}</td>
   <td class="pl-num">{int(r['assists'])}</td>
+  <td class="pl-num">{_rate(g_rate, goalkeeper)}</td>
+  <td class="pl-num">{_rate(a_rate)}</td>
 </tr>"""
         )
 
+    goals_rate_label = "CS %" if goalkeeper else "Gole / mecz"
     head = (
         f"<tr><th>Sezon</th><th class='pl-num'>Poz.</th><th class='pl-num'>Wiek</th>"
         f"<th class='pl-num'>OVR</th><th>Wartość</th><th class='pl-num'>Mecze</th>"
-        f"<th class='pl-num'>{_text(goals_label)}</th><th class='pl-num'>Asysty</th></tr>"
+        f"<th class='pl-num'>{_text(goals_label)}</th><th class='pl-num'>Asysty</th>"
+        f"<th class='pl-num'>{goals_rate_label}</th><th class='pl-num'>Asysty / mecz</th></tr>"
     )
+    total_matches = seasons["matches"].sum()
     total = f"""
 <tr class="pl-total">
   <td>Razem<div class="pl-sub">OVR = maksimum</div></td>
@@ -187,6 +200,8 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
   <td class="pl-num">{int(seasons['matches'].sum())}</td>
   <td class="pl-num">{int(seasons['goals'].sum())}</td>
   <td class="pl-num">{int(seasons['assists'].sum())}</td>
+  <td class="pl-num">{_rate(per_match(seasons['goals'].sum(), total_matches), goalkeeper)}</td>
+  <td class="pl-num">{_rate(per_match(seasons['assists'].sum(), total_matches))}</td>
 </tr>"""
     return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}{total}</table></div>"
 
