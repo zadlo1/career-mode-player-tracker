@@ -15,9 +15,9 @@ częścią repozytorium.
 - propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
 - podsumowanie sezonów i wykres rozwoju OVR
 - edycja i usuwanie zawodników oraz sezonów
+- rankingi (top 10): strzelcy, czyste konta, asysty, najdroższy zawodnik, największy rozwój OVR
 
 ## Planowane
-- rankingi (najlepsi strzelcy, najdroższy zawodnik, największy rozwój)
 - wgrywanie własnych grafik (zdjęcia zawodników, loga klubów i lig)
 
 ## Uruchomienie

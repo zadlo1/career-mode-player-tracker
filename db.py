@@ -162,6 +162,17 @@ def get_seasons(player_id) -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def get_all_seasons() -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT player_id, season, position, age, ovr, value_eur, matches, goals, assists
+            FROM seasons
+            ORDER BY player_id, season
+            """
+        ).fetchall()
+
+
 def get_games() -> list[int]:
     with get_connection() as conn:
         rows = conn.execute(

@@ -184,3 +184,38 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str) -> str:
   <td class="pl-num">{int(seasons['assists'].sum())}</td>
 </tr>"""
     return f"{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}{total}</table></div>"
+
+
+def ranking_table_html(df: pd.DataFrame, value_header: str, detail_header: str = "") -> str:
+    rows = []
+    for place, r in enumerate(df.to_dict("records"), start=1):
+        generated = (
+            '<span class="pl-gen" title="Zawodnik wygenerowany przez grę (nie istnieje naprawdę)">'
+            "wygenerowany</span>"
+            if r["is_generated"] else ""
+        )
+        detail = f"<td>{_text(r['detail_text'])}</td>" if detail_header else ""
+        rows.append(
+            f"""
+<tr>
+  <td class="pl-num pl-name">{place}</td>
+  <td>
+    <div class="pl-name">{_text(r['shown_name'])}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
+    <div class="pl-sub">{nationality_html(r['nationality'])}</div>
+  </td>
+  <td>
+    <div class="pl-name">{_text(r['managed_club'])}</div>
+    <div class="pl-sub">FC {_text(r['game'])}</div>
+  </td>
+  <td class="pl-num pl-name">{_text(r['value_text'])}</td>
+  {detail}
+</tr>"""
+        )
+
+    detail_head = f"<th>{_text(detail_header)}</th>" if detail_header else ""
+    head = (
+        "<tr><th class='pl-num'>#</th><th>Zawodnik</th><th>Klub</th>"
+        f"<th class='pl-num'>{_text(value_header)}</th>{detail_head}</tr>"
+    )
+    flags = flag_css(df["nationality"].dropna().unique())
+    return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"

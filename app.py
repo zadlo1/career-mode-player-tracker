@@ -11,6 +11,7 @@ from ui import format_money, players_table_html, seasons_table_html
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import ovr_chart
+from rankings import render_rankings
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -70,6 +71,8 @@ st.title("Baza zawodników - Career Mode")
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
 
+page = st.sidebar.radio("Widok", ["Zawodnicy", "Rankingi"])
+
 st.sidebar.header("Filtry")
 search = st.sidebar.text_input("Szukaj zawodnika")
 game_filter = st.sidebar.selectbox("Gra", options=get_games(), index=None, placeholder="Wszystkie")
@@ -80,6 +83,10 @@ type_filter = st.sidebar.selectbox(
 )
 sort_label = st.sidebar.selectbox("Sortuj po", list(SORT_OPTIONS), index=1)
 descending = st.sidebar.checkbox("Malejąco", value=True)
+
+if page == "Rankingi":
+    render_rankings(game_filter, club_filter, fav_only, type_filter)
+    st.stop()
 
 pn = st.session_state.setdefault("player_form_n", 0)
 
