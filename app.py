@@ -8,7 +8,10 @@ from db import (
     update_player, update_season,
 )
 from club_logos import delete_logo, save_logo
-from ui import format_money, logo_preview_html, players_table_html, seasons_table_html
+from player_photos import delete_photo, photo_data_uri, save_photo
+from ui import (
+    format_money, logo_preview_html, player_header_html, players_table_html, seasons_table_html,
+)
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import ovr_chart, value_chart
@@ -252,11 +255,50 @@ by_id = {r["id"]: r for r in view.to_dict("records")}
 player_id = st.selectbox(
     "Zawodnik",
     options=list(by_id.keys()),
-    format_func=lambda pid: f"{by_id[pid]['shown_name']} (FC {by_id[pid]['game']}, {by_id[pid]['managed_club']})",
+    format_func=lambda pid: (
+        f"{by_id[pid]['shown_name']} (FC {by_id[pid]['game']}"
+        + (f", {by_id[pid]['original_club']})" if clean(by_id[pid]["original_club"]) else ")")
+    ),
 )
 player = by_id[player_id]
 goals_label = "Czyste konta" if player["position"] == "GK" else "Gole"
 season_positions = season_position_options(player["position"])
+
+st.html(player_header_html(player, photo_data_uri(player_id)))
+
+phn = st.session_state.setdefault("photo_form_n", 0)
+
+with st.expander("Zdjęcie zawodnika"):
+    with st.form(f"photo_form_{player_id}_{phn}"):
+        photo_file = st.file_uploader(
+            "Wgraj zdjęcie (PNG, JPG lub WebP, do 2 MB)",
+            type=["png", "jpg", "jpeg", "webp"],
+            key=f"photo_file_{player_id}_{phn}",
+        )
+        ph1, ph2, _ = st.columns([1, 1, 4])
+        save_photo_clicked = ph1.form_submit_button("Zapisz zdjęcie")
+        delete_photo_clicked = ph2.form_submit_button("Usuń zdjęcie")
+
+    if save_photo_clicked:
+        if photo_file is None:
+            st.error("Wybierz plik ze zdjęciem.")
+        else:
+            try:
+                save_photo(player_id, photo_file.getvalue(), photo_file.name)
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                st.session_state["flash"] = f"Zapisano zdjęcie: {player['shown_name']}"
+                st.session_state["photo_form_n"] += 1
+                st.rerun()
+
+    if delete_photo_clicked:
+        if delete_photo(player_id):
+            st.session_state["flash"] = f"Usunięto zdjęcie: {player['shown_name']}"
+            st.session_state["photo_form_n"] += 1
+            st.rerun()
+        else:
+            st.info("Ten zawodnik nie ma zapisanego zdjęcia.")
 
 is_fav = bool(player["is_favorite"])
 fav = st.checkbox("Ulubiony", value=is_fav, key=f"fav_{player_id}")
@@ -432,6 +474,7 @@ with st.expander("Edytuj lub usuń zawodnika"):
             st.error("Zaznacz potwierdzenie, aby usunąć zawodnika.")
         else:
             delete_player(player_id)
+            delete_photo(player_id)
             st.session_state["flash"] = f"Usunięto zawodnika: {player['shown_name']}"
             st.rerun()
 

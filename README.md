@@ -5,7 +5,7 @@ Dla każdego zawodnika zapisujesz sezon po sezonie: pozycję, wiek, OVR,
 wartość transferową oraz mecze, gole (lub czyste konta) i asysty.
 
 Dane trzymane są lokalnie w pliku SQLite (`data/career.db`), a wgrane loga
-w `data/images/`. Nic z tego nie jest częścią repozytorium.
+i zdjęcia w `data/images/`. Nic z tego nie jest częścią repozytorium.
 
 ## Funkcje
 - wspólna baza dla wszystkich karier: filtrowanie po grze i klubie, wyszukiwarka, sortowanie
@@ -17,11 +17,11 @@ w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - edycja i usuwanie zawodników oraz sezonów
 - rankingi (top 10): strzelcy, czyste konta, asysty, najdroższy zawodnik, największy rozwój OVR
 - statystyki na mecz (gole, asysty, % czystych kont) w tabeli sezonów i w rankingach z progiem
-  minimalnej liczby meczów; liczone w locie, bez zmian w bazie
+  minimalnej liczby meczów;
 - loga klubów wgrywane przez użytkownika (PNG, JPG, WebP, SVG), pokazywane na liście i w rankingach
-
-## Planowane
-- zdjęcia zawodników i loga lig (wgrywane lokalnie, tak jak loga klubów)
+- przy zawodniku pokazywany jest jego klub początkowy z logiem
+- zdjęcia zawodników wgrywane przez użytkownika (PNG, JPG, WebP), pokazywane w karcie zawodnika;
+  zapisywane jako pliki w `data/images/players/`
 
 ## Uruchomienie
     pip install -r requirements.txt

@@ -43,6 +43,14 @@ CSS = """
            vertical-align: -5px; background-size: contain; background-repeat: no-repeat;
            background-position: center; }
 .pl-logo-big { width: 56px; height: 56px; margin-right: 0; vertical-align: middle; }
+.pl-header { display: flex; align-items: center; gap: 18px; margin: 4px 0 8px; }
+.pl-header-name { font-size: 22px; font-weight: 700; }
+.pl-header-club { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-weight: 600; }
+.pl-header-club .pl-logo-big { width: 36px; height: 36px; }
+.pl-photo { width: 110px; height: 110px; object-fit: cover; border-radius: 10px;
+            box-shadow: 0 0 0 1px rgba(128,128,128,.35); }
+.pl-photo-empty { display: flex; align-items: center; justify-content: center;
+                  font-size: 12px; opacity: .5; background: rgba(128,128,128,.12); }
 </style>
 """
 
@@ -122,11 +130,6 @@ def players_table_html(view: pd.DataFrame) -> str:
         full = f"{_text(r['name'])} · " if r["name"] != r["shown_name"] else ""
         sub_player = full + nationality_html(r["nationality"])
 
-        sub_club = f"FC {_text(r['game'])}"
-        original = _text(r["original_club"])
-        if original:
-            sub_club += f" · początkowy: {original}"
-
         rows.append(
             f"""
 <tr>
@@ -137,10 +140,7 @@ def players_table_html(view: pd.DataFrame) -> str:
   <td class="pl-num">{_num(r['age'])}</td>
   <td class="pl-num">{ovr_badge(r['max_ovr'])}</td>
   <td>{format_money(r['value_eur'])}</td>
-  <td>
-    <div class="pl-name">{club_logo_html(r['managed_club'])}{_text(r['managed_club'])}</div>
-    <div class="pl-sub">{sub_club}</div>
-  </td>
+  {_club_cell(r)}
   <td class="pl-num">{int(r['matches'])}</td>
   <td class="pl-num">{int(r['goals'])}</td>
   <td class="pl-num">{int(r['assists'])}</td>
@@ -149,10 +149,10 @@ def players_table_html(view: pd.DataFrame) -> str:
 
     head = (
         "<tr><th>Zawodnik</th><th class='pl-num'>Wiek</th>"
-        "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub</th>"
+        "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub początkowy</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )
-    flags = flag_css(view["nationality"].dropna().unique()) + club_logo_css(view["managed_club"].unique())
+    flags = flag_css(view["nationality"].dropna().unique()) + club_logo_css(view["original_club"].dropna().unique())
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
 
 
@@ -223,10 +223,7 @@ def ranking_table_html(df: pd.DataFrame, value_header: str, detail_header: str =
     <div class="pl-name">{_text(r['shown_name'])}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
     <div class="pl-sub">{nationality_html(r['nationality'])}</div>
   </td>
-  <td>
-    <div class="pl-name">{club_logo_html(r['managed_club'])}{_text(r['managed_club'])}</div>
-    <div class="pl-sub">FC {_text(r['game'])}</div>
-  </td>
+  {_club_cell(r)}
   <td class="pl-num pl-name">{_text(r['value_text'])}</td>
   {detail}
 </tr>"""
@@ -234,11 +231,46 @@ def ranking_table_html(df: pd.DataFrame, value_header: str, detail_header: str =
 
     detail_head = f"<th>{_text(detail_header)}</th>" if detail_header else ""
     head = (
-        "<tr><th class='pl-num'>#</th><th>Zawodnik</th><th>Klub</th>"
+        "<tr><th class='pl-num'>#</th><th>Zawodnik</th><th>Klub początkowy</th>"
         f"<th class='pl-num'>{_text(value_header)}</th>{detail_head}</tr>"
     )
-    flags = flag_css(df["nationality"].dropna().unique()) + club_logo_css(df["managed_club"].unique())
+    flags = flag_css(df["nationality"].dropna().unique()) + club_logo_css(df["original_club"].dropna().unique())
     return f"{flags}{CSS}<div class='pl-wrap'><table class='pl-table'>{head}{''.join(rows)}</table></div>"
+
+
+def _club_cell(r) -> str:
+    club = r["original_club"]
+    if not isinstance(club, str) or not club.strip():
+        name = '<span class="pl-muted">-</span>'
+    else:
+        name = f"{club_logo_html(club)}{_text(club)}"
+    return f"""<td>
+    <div class="pl-name">{name}</div>
+    <div class="pl-sub">FC {_text(r['game'])}</div>
+  </td>"""
+
+
+def player_header_html(player: dict, photo_uri) -> str:
+    if photo_uri:
+        photo = f'<img class="pl-photo" src="{photo_uri}" alt="">'
+    else:
+        photo = '<div class="pl-photo pl-photo-empty">brak zdjęcia</div>'
+    club = player["original_club"]
+    if isinstance(club, str) and club.strip():
+        club_line = f"{club_logo_html(club, big=True)}<span>{_text(club)}</span>"
+        logos = club_logo_css([club])
+    else:
+        club_line = '<span class="pl-muted">Brak klubu początkowego</span>'
+        logos = ""
+    return f"""{CSS}{logos}{flag_css([player['nationality']])}
+<div class="pl-header">
+  {photo}
+  <div>
+    <div class="pl-header-name">{_text(player['shown_name'])}<span class="pl-pos" style="background:{position_color(player['position'])}">{_text(player['position'])}</span></div>
+    <div class="pl-sub">{nationality_html(player['nationality'])}</div>
+    <div class="pl-header-club">{club_line}</div>
+  </div>
+</div>"""
 
 
 def club_logo_css(clubs) -> str:
