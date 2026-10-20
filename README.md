@@ -23,6 +23,7 @@ i zdjęcia w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - zdjęcia zawodników wgrywane przez użytkownika (PNG, JPG, WebP), pokazywane w karcie zawodnika;
   zapisywane jako pliki w `data/images/players/`
 
+
 ## Uruchomienie
     pip install -r requirements.txt
     streamlit run app.py
