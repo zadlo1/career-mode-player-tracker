@@ -11,7 +11,7 @@ from club_logos import delete_logo, save_logo
 from ui import format_money, logo_preview_html, players_table_html, seasons_table_html
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
-from charts import ovr_chart
+from charts import ovr_chart, value_chart
 from rankings import render_rankings
 
 POSITIONS = [
@@ -271,10 +271,18 @@ if seasons:
     st.html(seasons_table_html(raw, goals_label, goalkeeper=player["position"] == "GK"))
 
     if len(raw) >= 2:
-        st.caption("Rozwój OVR")
-        st.altair_chart(ovr_chart(raw), width="stretch")
+        chart_ovr, chart_value = st.columns(2)
+        with chart_ovr:
+            st.caption("Rozwój OVR")
+            st.altair_chart(ovr_chart(raw), width="stretch")
+        with chart_value:
+            st.caption("Wartość transferowa")
+            if raw["value_eur"].notna().sum() >= 2:
+                st.altair_chart(value_chart(raw), width="stretch")
+            else:
+                st.caption("Wykres wartości pojawi się, gdy dwa sezony będą miały podaną wartość.")
     else:
-        st.caption("Wykres rozwoju OVR pojawi się po dodaniu drugiego sezonu.")
+        st.caption("Wykresy rozwoju OVR i wartości pojawią się po dodaniu drugiego sezonu.")
 else:
     st.write("Ten zawodnik nie ma jeszcze żadnych sezonów.")
 

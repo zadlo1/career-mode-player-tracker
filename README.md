@@ -13,7 +13,7 @@ w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - oznaczanie zawodników wygenerowanych przez grę (juniorzy, brak licencji) i filtr po typie
 - sezon po sezonie: pozycja, wiek, OVR, wartość, mecze, gole (lub czyste konta), asysty
 - propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
-- podsumowanie sezonów i wykres rozwoju OVR
+- podsumowanie sezonów oraz wykresy rozwoju OVR i wartości transferowej
 - edycja i usuwanie zawodników oraz sezonów
 - rankingi (top 10): strzelcy, czyste konta, asysty, najdroższy zawodnik, największy rozwój OVR
 - statystyki na mecz (gole, asysty, % czystych kont) w tabeli sezonów i w rankingach z progiem
