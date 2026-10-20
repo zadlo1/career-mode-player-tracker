@@ -2,10 +2,12 @@ import altair as alt
 import pandas as pd
 
 LINE_COLOR = "#2e9e57"
-VALUE_COLOR = "#2b6cb0"
+VALUE_COLOR = "#3b82f6"
+TEXT_DARK = "#262730"
+TEXT_LIGHT = "#fafafa"
 
 
-def ovr_chart(seasons: pd.DataFrame) -> alt.Chart:
+def ovr_chart(seasons: pd.DataFrame, text_color: str = TEXT_DARK) -> alt.Chart:
     data = seasons[["season", "age", "ovr"]].dropna(subset=["ovr"])
     low = max(0, int(data["ovr"].min()) - 5)
     high = min(99, int(data["ovr"].max()) + 5)
@@ -21,7 +23,7 @@ def ovr_chart(seasons: pd.DataFrame) -> alt.Chart:
     )
     line = base.mark_line(color=LINE_COLOR, strokeWidth=3)
     points = base.mark_point(color=LINE_COLOR, filled=True, size=90)
-    labels = base.mark_text(dy=-14, fontWeight="bold").encode(text="ovr:Q")
+    labels = base.mark_text(dy=-14, fontWeight="bold", color=text_color).encode(text="ovr:Q")
     return (line + points + labels).properties(height=260)
 
 
@@ -33,7 +35,7 @@ def _short_money(value) -> str:
     return f"{int(value)}"
 
 
-def value_chart(seasons: pd.DataFrame) -> alt.Chart:
+def value_chart(seasons: pd.DataFrame, text_color: str = TEXT_DARK) -> alt.Chart:
     data = seasons[["season", "age", "value_eur"]].dropna(subset=["value_eur"]).copy()
     data["value_m"] = data["value_eur"] / 1_000_000
     data["value_label"] = data["value_eur"].map(_short_money)
@@ -50,5 +52,5 @@ def value_chart(seasons: pd.DataFrame) -> alt.Chart:
     )
     line = base.mark_line(color=VALUE_COLOR, strokeWidth=3)
     points = base.mark_point(color=VALUE_COLOR, filled=True, size=90)
-    labels = base.mark_text(dy=-14, fontWeight="bold").encode(text="value_label:N")
+    labels = base.mark_text(dy=-14, fontWeight="bold", color=text_color).encode(text="value_label:N")
     return (line + points + labels).properties(height=260)

@@ -14,7 +14,7 @@ from ui import (
 )
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
-from charts import ovr_chart, value_chart
+from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
 from rankings import render_rankings
 
 POSITIONS = [
@@ -313,14 +313,15 @@ if seasons:
     st.html(seasons_table_html(raw, goals_label, goalkeeper=player["position"] == "GK"))
 
     if len(raw) >= 2:
+        label_color = TEXT_LIGHT if st.context.theme.type == "dark" else TEXT_DARK
         chart_ovr, chart_value = st.columns(2)
         with chart_ovr:
             st.caption("Rozwój OVR")
-            st.altair_chart(ovr_chart(raw), width="stretch")
+            st.altair_chart(ovr_chart(raw, label_color), width="stretch")
         with chart_value:
             st.caption("Wartość transferowa")
             if raw["value_eur"].notna().sum() >= 2:
-                st.altair_chart(value_chart(raw), width="stretch")
+                st.altair_chart(value_chart(raw, label_color), width="stretch")
             else:
                 st.caption("Wykres wartości pojawi się, gdy dwa sezony będą miały podaną wartość.")
     else:
