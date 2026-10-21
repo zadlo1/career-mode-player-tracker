@@ -5,7 +5,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from pathlib import Path
 from db import (
-    add_player, add_season, delete_player, delete_season, get_all_clubs, get_clubs,
+    add_player, add_season, delete_player, delete_season, get_all_clubs, get_all_seasons, get_clubs,
     get_games, get_players, get_seasons, init_db, set_favorite,
     update_player, update_season,
 )
@@ -14,7 +14,7 @@ from player_photos import delete_photo, photo_data_uri, save_photo
 from ui import (
     format_money, logo_preview_html, player_header_html, players_table_html, seasons_table_html,
 )
-from potential import estimate_potentials
+from potential import MATURE_AGE, MIN_TRAIN_PLAYERS, estimate_potentials, train_from_rows
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
@@ -337,10 +337,24 @@ seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     raw["position"] = raw["position"].fillna(player["start_position"])
-    estimates = estimate_potentials(raw.to_dict("records"))
+    pot_model = train_from_rows(
+        [dict(s) for s in get_all_seasons()], df.set_index("id")["start_position"].to_dict()
+    )
+    estimates = estimate_potentials(raw.to_dict("records"), player["start_position"], pot_model)
     raw["pot"] = [e["pot"] if e else None for e in estimates]
     raw["pot_has_value"] = [e["has_value"] if e else True for e in estimates]
     st.html(seasons_table_html(raw, goals_label, goalkeeper=player["position"] == "GK"))
+
+    if pot_model.active:
+        st.caption(
+            f"POT (szac.) jest skalibrowany na Twojej bazie: {pot_model.mature_players} zawodników "
+            f"w wieku {MATURE_AGE}+ i {pot_model.samples} ich sezonów."
+        )
+    else:
+        st.caption(
+            f"POT (szac.) liczony wzorem bazowym. Do nauki na Twojej bazie potrzeba min. "
+            f"{MIN_TRAIN_PLAYERS} zawodników w wieku {MATURE_AGE}+ (teraz: {pot_model.mature_players})."
+        )
 
     if len(raw) >= 2:
         label_color = TEXT_LIGHT if st.context.theme.type == "dark" else TEXT_DARK
