@@ -488,7 +488,8 @@ with st.expander("Edytuj lub usuń sezon"):
             "Sezon",
             options=list(by_season),
             format_func=lambda i: by_season[i]["season"],
-            key=f"es_sel_{player_id}",
+            index=len(by_season) - 1,
+            key=f"es_sel_{player_id}_{sn}",
         )
         s = by_season[sid]
         value_plain = "" if s["value_eur"] is None else format_money(s["value_eur"]).replace(" €", "")
