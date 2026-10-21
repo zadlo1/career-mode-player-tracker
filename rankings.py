@@ -2,11 +2,30 @@
 import streamlit as st
 
 from db import get_all_seasons, get_players
+from ratings import POSITION_GROUPS
 from stats import format_rate, per_match
 from ui import format_money, ranking_table_html
 
 TOP_N = 10
 DEFAULT_MIN_MATCHES = 10
+
+ALL_POSITIONS = "Wszystkie pozycje"
+GROUP_LABELS = {
+    "GK": "Bramkarze (GK)",
+    "DEF": "Obrońcy (CB, LB, RB, LWB, RWB)",
+    "MID": "Pomocnicy (CDM, CM, CAM, LM, RM)",
+    "ATT": "Napastnicy i skrzydłowi (LW, RW, CF, ST)",
+}
+POSITION_OPTIONS = [ALL_POSITIONS] + list(GROUP_LABELS.values()) + list(POSITION_GROUPS)
+
+
+def positions_for(label: str):
+    if label == ALL_POSITIONS:
+        return None
+    for group, group_label in GROUP_LABELS.items():
+        if label == group_label:
+            return {pos for pos, g in POSITION_GROUPS.items() if g == group}
+    return {label}
 
 
 def _plural(n: int, one: str, few: str, many: str) -> str:
@@ -21,7 +40,7 @@ def _matches_text(n: int) -> str:
     return _plural(n, "mecz", "mecze", "meczów")
 
 
-def _load(game_filter, club_filter, fav_only, type_filter):
+def _load(game_filter, club_filter, fav_only, type_filter, positions=None):
     players = pd.DataFrame([dict(p) for p in get_players()])
     if players.empty:
         return players, pd.DataFrame()
@@ -40,7 +59,12 @@ def _load(game_filter, club_filter, fav_only, type_filter):
     seasons = pd.DataFrame([dict(s) for s in get_all_seasons()])
     if seasons.empty:
         return players, seasons
-    return players, seasons[seasons["player_id"].isin(players["id"])]
+    seasons = seasons[seasons["player_id"].isin(players["id"])]
+    if positions is not None:
+        start = players.set_index("id")["start_position"]
+        season_position = seasons["position"].fillna(seasons["player_id"].map(start))
+        seasons = seasons[season_position.isin(positions)]
+    return players, seasons
 
 
 def _totals(players: pd.DataFrame, seasons: pd.DataFrame, column: str) -> pd.DataFrame:
@@ -178,12 +202,14 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
         + f". Pokazuję top {TOP_N}."
     )
 
-    players, seasons = _load(game_filter, club_filter, fav_only, type_filter)
-    if players.empty or seasons.empty:
-        st.info("Brak danych do rankingów. Dodaj zawodników i ich sezony.")
-        return
-
-    min_matches = st.number_input(
+    opt1, opt2 = st.columns(2)
+    position_label = opt1.selectbox(
+        "Pozycja",
+        POSITION_OPTIONS,
+        key="ranking_position",
+        help="Liczą się tylko sezony rozegrane na wybranej pozycji.",
+    )
+    min_matches = opt2.number_input(
         "Minimum meczów w rankingach „na mecz”",
         min_value=1,
         value=DEFAULT_MIN_MATCHES,
@@ -191,11 +217,27 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
         help="Żeby zawodnik z 1 meczem i 1 golem nie wygrywał rankingu.",
     )
 
-    rankings = [
-        ("Strzelcy", _scorers(players, seasons), "Gole", "Mecze"),
-        ("Gole na mecz", _goals_per_match(players, seasons, min_matches), "Gole / mecz", "Bilans"),
-        ("Czyste konta", _clean_sheets(players, seasons), "Czyste konta", "Mecze"),
-        ("Czyste konta %", _clean_sheet_rate(players, seasons, min_matches), "% meczów", "Bilans"),
+    positions = positions_for(position_label)
+    players, seasons = _load(game_filter, club_filter, fav_only, type_filter, positions)
+    if players.empty or seasons.empty:
+        st.info("Brak danych do rankingów dla wybranych filtrów i pozycji.")
+        return
+
+    show_outfield = positions is None or positions != {"GK"}
+    show_keepers = positions is None or "GK" in positions
+
+    rankings = []
+    if show_outfield:
+        rankings += [
+            ("Strzelcy", _scorers(players, seasons), "Gole", "Mecze"),
+            ("Gole na mecz", _goals_per_match(players, seasons, min_matches), "Gole / mecz", "Bilans"),
+        ]
+    if show_keepers:
+        rankings += [
+            ("Czyste konta", _clean_sheets(players, seasons), "Czyste konta", "Mecze"),
+            ("Czyste konta %", _clean_sheet_rate(players, seasons, min_matches), "% meczów", "Bilans"),
+        ]
+    rankings += [
         ("Asysty", _assists(players, seasons), "Asysty", "Mecze"),
         ("Asysty na mecz", _assists_per_match(players, seasons, min_matches), "Asysty / mecz", "Bilans"),
         ("Najdroższy", _most_valuable(players, seasons), "Najwyższa wartość", "Kiedy"),
