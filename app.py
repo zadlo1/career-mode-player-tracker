@@ -2,6 +2,8 @@ import sqlite3
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
+from pathlib import Path
 from db import (
     add_player, add_season, delete_player, delete_season, get_all_clubs, get_clubs,
     get_games, get_players, get_seasons, init_db, set_favorite,
@@ -16,6 +18,10 @@ from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
 from rankings import render_rankings
+
+player_table = components.declare_component(
+    "player_table", path=str(Path(__file__).parent / "player_table_component")
+)
 
 POSITIONS = [
     "GK", "CB", "LB", "RB", "LWB", "RWB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "CF", "ST",
@@ -247,20 +253,40 @@ view = view.sort_values(
     key=lambda s: s.str.lower() if pd.api.types.is_string_dtype(s) else s,
 )
 
-st.html(players_table_html(view))
+clicked = player_table(html=players_table_html(view, clickable=True), key="players_table", default=None)
+if clicked and st.session_state.get("table_click") != clicked["t"]:
+    st.session_state["table_click"] = clicked["t"]
+    if clicked["id"] in set(view["id"]):
+        st.session_state["player_select"] = clicked["id"]
+        st.session_state["scroll_to_player"] = True
 
 st.subheader("Sezony zawodnika")
 
 by_id = {r["id"]: r for r in view.to_dict("records")}
+if st.session_state.get("player_select") not in by_id:
+    st.session_state.pop("player_select", None)
 player_id = st.selectbox(
     "Zawodnik",
     options=list(by_id.keys()),
+    key="player_select",
     format_func=lambda pid: (
         f"{by_id[pid]['shown_name']} (FC {by_id[pid]['game']}"
         + (f", {by_id[pid]['original_club']})" if clean(by_id[pid]["original_club"]) else ")")
     ),
 )
 player = by_id[player_id]
+if st.session_state.pop("scroll_to_player", False):
+    components.html(
+        """<script>
+        setTimeout(() => {
+          const doc = window.parent.document;
+          const el = doc.getElementById("sezony-zawodnika")
+            || [...doc.querySelectorAll("h3")].find(h => h.textContent.includes("Sezony zawodnika"));
+          if (el) el.scrollIntoView({behavior: "smooth", block: "start"});
+        }, 300);
+        </script>""",
+        height=0,
+    )
 goals_label = "Czyste konta" if player["position"] == "GK" else "Gole"
 season_positions = season_position_options(player["position"])
 

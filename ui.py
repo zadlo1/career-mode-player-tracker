@@ -30,6 +30,8 @@ CSS = """
 .pl-pos { display: inline-block; padding: 1px 7px; margin-left: 8px; border-radius: 4px;
           color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
 .pl-muted { opacity: .5; }
+.pl-link { cursor: pointer; }
+.pl-link:hover { text-decoration: underline; }
 .pl-gen { display: inline-block; padding: 0 6px; margin-left: 6px; border-radius: 4px;
           border: 1px solid rgba(128,128,128,.6); font-size: 10px; font-weight: 600;
           opacity: .75; vertical-align: middle; }
@@ -118,7 +120,7 @@ def nationality_html(code) -> str:
     return html.escape(code)
 
 
-def players_table_html(view: pd.DataFrame) -> str:
+def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
     rows = []
     for r in view.to_dict("records"):
         star = '<span class="pl-star">★</span>' if r["is_favorite"] else ""
@@ -127,6 +129,10 @@ def players_table_html(view: pd.DataFrame) -> str:
             "wygenerowany</span>"
             if r["is_generated"] else ""
         )
+        name_html = (
+            f'<span class="pl-link" data-pid="{int(r["id"])}">{_text(r["shown_name"])}</span>'
+            if clickable else _text(r["shown_name"])
+        )
         full = f"{_text(r['name'])} · " if r["name"] != r["shown_name"] else ""
         sub_player = full + nationality_html(r["nationality"])
 
@@ -134,7 +140,7 @@ def players_table_html(view: pd.DataFrame) -> str:
             f"""
 <tr>
   <td>
-    <div class="pl-name">{star}{_text(r['shown_name'])}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
+    <div class="pl-name">{star}{name_html}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
     <div class="pl-sub">{sub_player}</div>
   </td>
   <td class="pl-num">{_num(r['age'])}</td>
