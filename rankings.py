@@ -61,9 +61,10 @@ def _load(game_filter, club_filter, fav_only, type_filter, positions=None):
         return players, seasons
     seasons = seasons[seasons["player_id"].isin(players["id"])]
     if positions is not None:
+        players = players[players["position"].isin(positions)]
         start = players.set_index("id")["start_position"]
         season_position = seasons["position"].fillna(seasons["player_id"].map(start))
-        seasons = seasons[season_position.isin(positions)]
+        seasons = seasons[seasons["player_id"].isin(players["id"]) & season_position.isin(positions)]
     return players, seasons
 
 
@@ -207,7 +208,7 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
         "Pozycja",
         POSITION_OPTIONS,
         key="ranking_position",
-        help="Liczą się tylko sezony rozegrane na wybranej pozycji.",
+        help="Zawodnik jest liczony tylko pod swoją aktualną pozycją (z ostatniego sezonu), a sumują się sezony rozegrane na wybranej pozycji.",
     )
     min_matches = opt2.number_input(
         "Minimum meczów w rankingach „na mecz”",
