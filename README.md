@@ -12,7 +12,7 @@ i zdjęcia w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - zawodnik: wyświetlana nazwa, narodowość z flagą, klub początkowy, ulubieni
 - oznaczanie zawodników wygenerowanych przez grę (juniorzy, brak licencji) i filtr po typie
 - sezon po sezonie: pozycja, wiek, OVR, wartość, mecze, gole (lub czyste konta), asysty
-- szacowany potencjał (POT) przy każdym sezonie, liczony z OVR, wieku, wartości rynkowej, tempa rozwoju i gry w sezonie (`potential.py`); wzór bazowy jest korygowany na podstawie zawodników z bazy, którzy skończyli rozwój
+- szacowany potencjał (POT) przy każdym sezonie: model dopasowany do ok. 14 tys. zawodników FC 26 (OVR, wiek, wartość), z korektą na tempo rozwoju, grę w sezonie i zawodników z Twojej bazy, którzy skończyli rozwój (`potential.py`, współczynniki w `potential_coefs.py`, odtworzenie: `python tools/fit_potential_model.py plik.csv`)
 - propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
 - podsumowanie sezonów oraz wykresy rozwoju OVR i wartości transferowej
 - edycja i usuwanie zawodników oraz sezonów

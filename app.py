@@ -14,7 +14,7 @@ from player_photos import delete_photo, photo_data_uri, save_photo
 from ui import (
     format_money, logo_preview_html, player_header_html, players_table_html, seasons_table_html,
 )
-from potential import MATURE_AGE, MIN_TRAIN_PLAYERS, estimate_potentials, train_from_rows
+from potential import MATURE_AGE, MIN_TRAIN_PLAYERS, MIN_TRAIN_SAMPLES, estimate_potentials, train_from_rows
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
@@ -353,7 +353,8 @@ if seasons:
     else:
         st.caption(
             f"POT (szac.) liczony wzorem bazowym. Do nauki na Twojej bazie potrzeba min. "
-            f"{MIN_TRAIN_PLAYERS} zawodników w wieku {MATURE_AGE}+ (teraz: {pot_model.mature_players})."
+            f"{MIN_TRAIN_PLAYERS} zawodników w wieku {MATURE_AGE}+ i {MIN_TRAIN_SAMPLES} ich sezonów "
+            f"(teraz: {pot_model.mature_players} zawodników, {pot_model.samples} sezonów)."
         )
 
     if len(raw) >= 2:

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from potential_coefs import WITH_VALUE, WITHOUT_VALUE
 from ratings import POSITION_GROUPS
 
 # Krzywa wartości: wartość rynkowa zawodnika w dojrzałym wieku rośnie wykładniczo wraz z OVR.
@@ -10,24 +11,19 @@ BASE_OVR = 60
 BASE_VALUE = 200_000
 VALUE_SLOPE = 0.231  # przyrost ln(wartości) na 1 punkt OVR
 
-# Po 28. roku życia wartość spada niezależnie od OVR.
+# Po 28. roku życia wartość spada niezależnie od OVR (używane tylko do cechy "nadwyżka wartości").
 AGE_VALUE_FACTOR = {29: 0.93, 30: 0.80, 31: 0.65, 32: 0.50, 33: 0.40, 34: 0.30}
 OLD_VALUE_FACTOR = 0.20
 
-# Jaką część "punktów ponad krzywą" wyjaśnia potencjał (reszta to wiek, kontrakt itp.).
-YOUNG_WEIGHT = 0.5
-OLD_WEIGHT = 0.3
+# Wiek w bazie to wiek na początek roku, a w grze (wzorce w potential_coefs.py) średnio pół roku więcej.
+AGE_SHIFT = 0.5
+MIN_MODEL_AGE, MAX_MODEL_AGE = 15.5, 29.5
+MIN_LN_VALUE, MAX_LN_VALUE = math.log(10_000), math.log(250_000_000)
 
 # Maksymalna realna różnica potencjał - OVR dla danego wieku.
 MAX_GAP = {
     17: 30, 18: 28, 19: 25, 20: 22, 21: 18, 22: 15, 23: 12,
     24: 10, 25: 8, 26: 6, 27: 4, 28: 3, 29: 2,
-}
-
-# Typowa różnica potencjał - OVR, gdy nie znamy wartości.
-PRIOR_GAP = {
-    17: 12, 18: 10, 19: 8, 20: 7, 21: 5.5, 22: 4, 23: 3,
-    24: 2.5, 25: 2, 26: 1.5, 27: 1, 28: 0.5,
 }
 
 # Typowy roczny przyrost OVR w danym wieku.
@@ -36,12 +32,10 @@ EXPECTED_GROWTH = {
     24: 1.0, 25: 0.5, 26: 0.2, 27: 0.0, 28: 0.0, 29: -0.5,
 }
 
-NO_VALUE_PRIOR_SHARE = 0.6  # bez wartości opieramy się tylko na wieku, ostrożniej
-VALUE_SHARE = 0.8          # udział oceny z wartości względem typowej różnicy dla wieku
 TREND_WEIGHTS = (1.0, 0.6, 0.35)
-TREND_GAIN = 1.0
-TREND_LIMIT = 5.0
-SMOOTHING = 0.3            # udział poprzedniej estymaty w nowej
+TREND_GAIN = 0.5
+TREND_LIMIT = 3.0
+SMOOTHING = 0.25           # udział poprzedniej estymaty w nowej
 LAST_POTENTIAL_AGE = 28
 
 # Nauka z bazy: dojrzali zawodnicy pokazują, jak naprawdę skończył się rozwój.
@@ -64,12 +58,6 @@ def _age_value_factor(age: int) -> float:
     return AGE_VALUE_FACTOR.get(age, OLD_VALUE_FACTOR)
 
 
-def _potential_weight(age: int) -> float:
-    if age <= 23:
-        return YOUNG_WEIGHT
-    return YOUNG_WEIGHT + (OLD_WEIGHT - YOUNG_WEIGHT) * (min(age, 28) - 23) / 5
-
-
 def _lookup(table: dict, age: int, default_low: float, default_high: float) -> float:
     if age in table:
         return table[age]
@@ -80,24 +68,38 @@ def max_gap(age: int) -> float:
     return _lookup(MAX_GAP, age, MAX_GAP[17], 0)
 
 
-def prior_gap(age: int) -> float:
-    return _lookup(PRIOR_GAP, age, PRIOR_GAP[17], 0)
-
-
 def expected_growth(age: int) -> float:
     if age > 29:
         return -1.0 - 0.5 * (age - 30)
     return _lookup(EXPECTED_GROWTH, age, EXPECTED_GROWTH[17], -0.5)
 
 
-def value_signal(ovr: float, age: int, value):
-    """Zwraca (różnica POT - OVR z wartości, nadwyżka wartości w punktach OVR)."""
-    if value is None or value <= 0:
-        return NO_VALUE_PRIOR_SHARE * prior_gap(age), 0.0
-    expected = base_value(ovr) * _age_value_factor(age)
-    extra_points = math.log(value / expected) / VALUE_SLOPE
-    gap = max(0.0, extra_points / _potential_weight(age))
-    return VALUE_SHARE * gap + (1 - VALUE_SHARE) * prior_gap(age), extra_points
+def _design(age: float, ovr: float, ln_value: float, gk: int, with_value: bool) -> list:
+    a = (age - 22) / 4
+    o = (ovr - 65) / 10
+    if with_value:
+        v = (ln_value - 13.5) / 2
+        base = [1.0, o, v, float(gk), o * o, v * v, o * v]
+    else:
+        base = [1.0, o, float(gk), o * o]
+    return [b * a**power for power in range(4) for b in base]
+
+
+def value_signal(ovr: float, age: int, value, is_gk: bool = False):
+    """Zwraca (różnica POT - OVR z modelu dopasowanego do zawodników gry, nadwyżka wartości w pkt OVR)."""
+    age_eff = min(max(age + AGE_SHIFT, MIN_MODEL_AGE), MAX_MODEL_AGE)
+    ovr_c = min(max(ovr, 40), 92)
+    has_value = value is not None and value > 0
+    if has_value:
+        ln_value = min(max(math.log(value), MIN_LN_VALUE), MAX_LN_VALUE)
+        coef, features = WITH_VALUE, _design(age_eff, ovr_c, ln_value, int(is_gk), True)
+        expected = base_value(ovr) * _age_value_factor(age)
+        extra = math.log(value / expected) / VALUE_SLOPE
+    else:
+        coef, features = WITHOUT_VALUE, _design(age_eff, ovr_c, 0.0, int(is_gk), False)
+        extra = 0.0
+    gap = float(np.dot(coef, features))
+    return max(0.0, gap), extra
 
 
 def development_trend(history: list) -> float:
@@ -150,12 +152,13 @@ def _analyze(seasons: list, default_position=None) -> list:
                 "base_gap": 0.0, "features": None}
 
         if age <= LAST_POTENTIAL_AGE:
-            gap, extra = value_signal(ovr, age, value)
+            position = s.get("position") or default_position
+            gap, extra = value_signal(ovr, age, value, str(position).upper() == "GK")
             youth = min(1.0, (LAST_POTENTIAL_AGE + 1 - age) / 8)
             trend = development_trend(history)
             adjustment = max(-TREND_LIMIT, min(TREND_LIMIT, TREND_GAIN * trend * youth))
             gap = max(0.0, min(gap + adjustment, max_gap(age)))
-            playtime, output = _play_features(s, s.get("position") or default_position)
+            playtime, output = _play_features(s, position)
             raw = [gap / 10, max(-5.0, min(15.0, extra)) / 5, trend / 3, playtime, output, 1.0]
             item["base_gap"] = gap
             item["features"] = [youth * x for x in raw]
