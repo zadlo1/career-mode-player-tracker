@@ -130,12 +130,12 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
             "wygenerowany</span>"
             if r["is_generated"] else ""
         )
+        full_title = f' title="{_text(r["name"])}"' if r["name"] != r["shown_name"] else ""
         name_html = (
-            f'<span class="pl-link" data-pid="{int(r["id"])}">{_text(r["shown_name"])}</span>'
-            if clickable else _text(r["shown_name"])
+            f'<span class="pl-link" data-pid="{int(r["id"])}"{full_title}>{_text(r["shown_name"])}</span>'
+            if clickable else f"<span{full_title}>{_text(r['shown_name'])}</span>"
         )
-        full = f"{_text(r['name'])} · " if r["name"] != r["shown_name"] else ""
-        sub_player = full + nationality_html(r["nationality"])
+        sub_player = nationality_html(r["nationality"])
 
         rows.append(
             f"""

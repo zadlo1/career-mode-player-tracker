@@ -85,7 +85,7 @@ if "flash" in st.session_state:
 page = st.sidebar.radio("Widok", ["Zawodnicy", "Rankingi"])
 
 st.sidebar.header("Filtry")
-search = st.sidebar.text_input("Szukaj zawodnika")
+search = st.sidebar.text_input("Szukaj zawodnika", help="Szuka też po pełnym imieniu i nazwisku.")
 game_filter = st.sidebar.selectbox("Gra", options=get_games(), index=None, placeholder="Wszystkie")
 club_filter = st.sidebar.selectbox("Mój klub", options=get_clubs(), index=None, placeholder="Wszystkie")
 fav_only = st.sidebar.checkbox("Tylko ulubieni")
