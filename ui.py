@@ -146,7 +146,7 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
   </td>
   <td class="pl-num">{_num(r['age'])}</td>
   <td class="pl-num">{ovr_badge(r['max_ovr'])}</td>
-  <td>{format_money(r['value_eur'])}</td>
+  <td>{format_money(r['max_value'])}</td>
   {_club_cell(r)}
   <td class="pl-num">{int(r['matches'])}</td>
   <td class="pl-num">{int(r['goals'])}</td>
@@ -156,7 +156,7 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
 
     head = (
         "<tr><th>Zawodnik</th><th class='pl-num'>Wiek</th>"
-        "<th class='pl-num'>Max OVR</th><th>Wartość</th><th>Klub początkowy</th>"
+        "<th class='pl-num'>Max OVR</th><th>Max wartość</th><th>Klub początkowy</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )
     flags = flag_css(view["nationality"].dropna().unique()) + club_logo_css(view["original_club"].dropna().unique())

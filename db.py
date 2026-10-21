@@ -116,7 +116,7 @@ def get_players() -> list[sqlite3.Row]:
                    p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
                    p.is_generated,
                    ls.age, ls.ovr, ls.value_eur,
-                   agg.max_ovr, agg.matches, agg.goals, agg.assists
+                   agg.max_ovr, agg.max_value, agg.matches, agg.goals, agg.assists
             FROM players p
             LEFT JOIN seasons ls ON ls.id = (
                 SELECT s.id FROM seasons s
@@ -127,6 +127,7 @@ def get_players() -> list[sqlite3.Row]:
             LEFT JOIN (
                 SELECT player_id,
                        MAX(ovr) AS max_ovr,
+                       MAX(value_eur) AS max_value,
                        SUM(matches) AS matches,
                        SUM(goals) AS goals,
                        SUM(assists) AS assists

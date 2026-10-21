@@ -32,7 +32,7 @@ SORT_OPTIONS = {
     "Zawodnik": "shown_name",
     "Max OVR": "max_ovr",
     "Wiek": "age",
-    "Wartość": "value_eur",
+    "Max wartość": "max_value",
     "Mecze": "matches",
     "Gole / czyste konta": "goals",
     "Asysty": "assists",
