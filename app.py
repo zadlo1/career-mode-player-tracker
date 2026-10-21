@@ -14,6 +14,7 @@ from player_photos import delete_photo, photo_data_uri, save_photo
 from ui import (
     format_money, logo_preview_html, player_header_html, players_table_html, seasons_table_html,
 )
+from potential import estimate_potentials
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
@@ -336,13 +337,16 @@ seasons = get_seasons(player_id)
 if seasons:
     raw = pd.DataFrame([dict(s) for s in seasons])
     raw["position"] = raw["position"].fillna(player["start_position"])
+    estimates = estimate_potentials(raw.to_dict("records"))
+    raw["pot"] = [e["pot"] if e else None for e in estimates]
+    raw["pot_has_value"] = [e["has_value"] if e else True for e in estimates]
     st.html(seasons_table_html(raw, goals_label, goalkeeper=player["position"] == "GK"))
 
     if len(raw) >= 2:
         label_color = TEXT_LIGHT if st.context.theme.type == "dark" else TEXT_DARK
         chart_ovr, chart_value = st.columns(2)
         with chart_ovr:
-            st.caption("Rozwój OVR")
+            st.caption("Rozwój OVR (przerywana linia: szacowany potencjał)")
             st.altair_chart(ovr_chart(raw, label_color), width="stretch")
         with chart_value:
             st.caption("Wartość transferowa")

@@ -12,6 +12,7 @@ i zdjęcia w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - zawodnik: wyświetlana nazwa, narodowość z flagą, klub początkowy, ulubieni
 - oznaczanie zawodników wygenerowanych przez grę (juniorzy, brak licencji) i filtr po typie
 - sezon po sezonie: pozycja, wiek, OVR, wartość, mecze, gole (lub czyste konta), asysty
+- szacowany potencjał (POT) przy każdym sezonie, liczony z OVR, wieku, wartości rynkowej i tempa rozwoju (`potential.py`)
 - propozycja kolejnego sezonu (rok, wiek, OVR, wartość) na podstawie poprzedniego
 - podsumowanie sezonów oraz wykresy rozwoju OVR i wartości transferowej
 - edycja i usuwanie zawodników oraz sezonów

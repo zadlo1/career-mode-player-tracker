@@ -30,6 +30,7 @@ CSS = """
 .pl-pos { display: inline-block; padding: 1px 7px; margin-left: 8px; border-radius: 4px;
           color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
 .pl-muted { opacity: .5; }
+.pl-est { opacity: .7; }
 .pl-link { cursor: pointer; }
 .pl-link:hover { text-decoration: underline; }
 .pl-gen { display: inline-block; padding: 0 6px; margin-left: 6px; border-radius: 4px;
@@ -167,6 +168,15 @@ def _rate(value, percent: bool = False) -> str:
     return '<span class="pl-muted">-</span>' if text == "-" else text
 
 
+def _pot_cell(pot, has_value) -> str:
+    if pot is None or pd.isna(pot):
+        return '<span class="pl-muted">-</span>'
+    badge = ovr_badge(pot)
+    if has_value:
+        return badge
+    return f'<span class="pl-est" title="Szacunek bez wartości rynkowej, tylko na podstawie wieku i rozwoju">{badge}</span>'
+
+
 def seasons_table_html(seasons: pd.DataFrame, goals_label: str, goalkeeper: bool = False) -> str:
     goals_rate = per_match(seasons["goals"], seasons["matches"])
     assists_rate = per_match(seasons["assists"], seasons["matches"])
@@ -179,6 +189,7 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str, goalkeeper: bool
   <td class="pl-num">{_pos_badge(r['position'])}</td>
   <td class="pl-num">{_num(r['age'])}</td>
   <td class="pl-num">{ovr_badge(r['ovr'])}</td>
+  <td class="pl-num">{_pot_cell(r.get('pot'), r.get('pot_has_value', True))}</td>
   <td>{format_money(r['value_eur'])}</td>
   <td class="pl-num">{int(r['matches'])}</td>
   <td class="pl-num">{int(r['goals'])}</td>
@@ -191,7 +202,8 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str, goalkeeper: bool
     goals_rate_label = "CS %" if goalkeeper else "Gole / mecz"
     head = (
         f"<tr><th>Sezon</th><th class='pl-num'>Poz.</th><th class='pl-num'>Wiek</th>"
-        f"<th class='pl-num'>OVR</th><th>Wartość</th><th class='pl-num'>Mecze</th>"
+        f"<th class='pl-num'>OVR</th><th class='pl-num' title='Szacowany potencjał'>POT (szac.)</th>"
+        f"<th>Wartość</th><th class='pl-num'>Mecze</th>"
         f"<th class='pl-num'>{_text(goals_label)}</th><th class='pl-num'>Asysty</th>"
         f"<th class='pl-num'>{goals_rate_label}</th><th class='pl-num'>Asysty / mecz</th></tr>"
     )
@@ -202,6 +214,7 @@ def seasons_table_html(seasons: pd.DataFrame, goals_label: str, goalkeeper: bool
   <td></td>
   <td></td>
   <td class="pl-num">{ovr_badge(seasons['ovr'].max())}</td>
+  <td></td>
   <td></td>
   <td class="pl-num">{int(seasons['matches'].sum())}</td>
   <td class="pl-num">{int(seasons['goals'].sum())}</td>
