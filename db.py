@@ -115,7 +115,7 @@ def get_players() -> list[sqlite3.Row]:
                    p.position AS start_position,
                    p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
                    p.is_generated,
-                   ls.age, ls.ovr, ls.value_eur,
+                   ls.age, ls.ovr, ls.value_eur, pk.peak_age,
                    agg.max_ovr, agg.max_value, agg.matches, agg.goals, agg.assists
             FROM players p
             LEFT JOIN seasons ls ON ls.id = (
@@ -134,6 +134,16 @@ def get_players() -> list[sqlite3.Row]:
                 FROM seasons
                 GROUP BY player_id
             ) agg ON agg.player_id = p.id
+            LEFT JOIN (
+                SELECT s.player_id, MIN(s.age) AS peak_age
+                FROM seasons s
+                JOIN (
+                    SELECT player_id, MAX(ovr) AS best_ovr
+                    FROM seasons
+                    GROUP BY player_id
+                ) mx ON mx.player_id = s.player_id AND s.ovr = mx.best_ovr
+                GROUP BY s.player_id
+            ) pk ON pk.player_id = p.id
             ORDER BY shown_name
             """
         ).fetchall()

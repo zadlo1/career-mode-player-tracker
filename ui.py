@@ -121,6 +121,13 @@ def nationality_html(code) -> str:
     return html.escape(code)
 
 
+def _peak_age_cell(r) -> str:
+    peak = r.get("peak_age")
+    if peak is None or pd.isna(peak):
+        return '<span class="pl-muted">-</span>'
+    return str(int(peak))
+
+
 def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
     rows = []
     for r in view.to_dict("records"):
@@ -144,7 +151,7 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
     <div class="pl-name">{star}{name_html}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
     <div class="pl-sub">{sub_player}</div>
   </td>
-  <td class="pl-num">{_num(r['age'])}</td>
+  <td class="pl-num">{_peak_age_cell(r)}</td>
   <td class="pl-num">{ovr_badge(r['max_ovr'])}</td>
   <td>{format_money(r['max_value'])}</td>
   {_club_cell(r)}
@@ -155,7 +162,7 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
         )
 
     head = (
-        "<tr><th>Zawodnik</th><th class='pl-num'>Wiek</th>"
+        "<tr><th>Zawodnik</th><th class='pl-num' title='Wiek, w którym zawodnik miał najwyższy OVR'>Wiek peaku</th>"
         "<th class='pl-num'>Max OVR</th><th>Max wartość</th><th>Klub początkowy</th>"
         "<th class='pl-num'>Mecze</th><th class='pl-num'>G / CS</th><th class='pl-num'>Asysty</th></tr>"
     )

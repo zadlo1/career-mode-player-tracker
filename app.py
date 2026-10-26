@@ -31,7 +31,7 @@ POSITIONS = [
 SORT_OPTIONS = {
     "Zawodnik": "shown_name",
     "Max OVR": "max_ovr",
-    "Wiek": "age",
+    "Wiek peaku": "peak_age",
     "Max wartość": "max_value",
     "Mecze": "matches",
     "Gole / czyste konta": "goals",
