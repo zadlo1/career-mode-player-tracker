@@ -9,6 +9,9 @@ from ui import format_money, ranking_table_html
 TOP_N = 10
 DEFAULT_MIN_MATCHES = 10
 
+PLAYERS_MODE = "Zawodnicy (łącznie)"
+SEASONS_MODE = "Pojedyncze sezony"
+
 ALL_POSITIONS = "Wszystkie pozycje"
 GROUP_LABELS = {
     "GK": "Bramkarze (GK)",
@@ -186,6 +189,114 @@ def _growth(players: pd.DataFrame, seasons: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _player_rankings(players, seasons, min_matches, show_outfield, show_keepers) -> list:
+    rankings = []
+    if show_outfield:
+        rankings += [
+            ("Strzelcy", _scorers(players, seasons), "Gole", "Mecze"),
+            ("Gole na mecz", _goals_per_match(players, seasons, min_matches), "Gole / mecz", "Bilans"),
+        ]
+    if show_keepers:
+        rankings += [
+            ("Czyste konta", _clean_sheets(players, seasons), "Czyste konta", "Mecze"),
+            ("Czyste konta %", _clean_sheet_rate(players, seasons, min_matches), "% meczów", "Bilans"),
+        ]
+    rankings += [
+        ("Asysty", _assists(players, seasons), "Asysty", "Mecze"),
+        ("Asysty na mecz", _assists_per_match(players, seasons, min_matches), "Asysty / mecz", "Bilans"),
+        ("Najdroższy", _most_valuable(players, seasons), "Najwyższa wartość", "Kiedy"),
+        ("Największy rozwój", _growth(players, seasons), "Zmiana OVR", "Przebieg"),
+    ]
+    return rankings
+
+
+# ---------- rankingi pojedynczych sezonów (jeden wiersz = jeden sezon jednego zawodnika) ----------
+
+def _season_rows(players: pd.DataFrame, seasons: pd.DataFrame) -> pd.DataFrame:
+    columns = ["id", "shown_name", "nationality", "original_club", "managed_club",
+               "game", "is_generated", "start_position"]
+    rows = seasons.merge(players[columns], left_on="player_id", right_on="id")
+    rows["position"] = rows["position"].fillna(rows["start_position"])
+    for column in ["matches", "goals", "assists"]:
+        rows[column] = rows[column].fillna(0).astype(int)
+    rows["ga"] = rows["goals"] + rows["assists"]
+    return rows
+
+
+def _season_count_ranking(rows: pd.DataFrame, key: str, detail) -> pd.DataFrame:
+    df = rows[rows[key] > 0]
+    if df.empty:
+        return df
+    df = df.sort_values([key, "matches", "shown_name"], ascending=[False, True, True]).head(TOP_N).copy()
+    df["value_text"] = df[key].astype(int).astype(str)
+    df["detail_text"] = df.apply(detail, axis=1)
+    return df
+
+
+def _season_rate_ranking(rows: pd.DataFrame, key: str, min_matches: int, detail, percent=False) -> pd.DataFrame:
+    df = rows[(rows["matches"] >= min_matches) & (rows[key] > 0)]
+    if df.empty:
+        return df
+    df = df.assign(rate=per_match(df[key], df["matches"]))
+    df = df.sort_values(["rate", key, "shown_name"], ascending=[False, False, True]).head(TOP_N).copy()
+    df["value_text"] = df["rate"].map(lambda v: format_rate(v, percent))
+    df["detail_text"] = df.apply(detail, axis=1)
+    return df
+
+
+def _season_ovr_jump(rows: pd.DataFrame) -> pd.DataFrame:
+    rated = rows.dropna(subset=["ovr"]).sort_values(["player_id", "season"]).copy()
+    if rated.empty:
+        return rated
+    grouped = rated.groupby("player_id")
+    rated["prev_ovr"] = grouped["ovr"].shift(1)
+    rated["prev_season"] = grouped["season"].shift(1)
+    rated["jump"] = rated["ovr"] - rated["prev_ovr"]
+    df = rated[rated["jump"] > 0]
+    if df.empty:
+        return df
+    df = df.sort_values(["jump", "ovr", "shown_name"], ascending=[False, False, True]).head(TOP_N).copy()
+    df["value_text"] = df["jump"].astype(int).map(lambda j: f"+{j}")
+    df["detail_text"] = df.apply(
+        lambda r: f"{int(r['prev_ovr'])} → {int(r['ovr'])} ({r['prev_season']} → {r['season']})", axis=1
+    )
+    return df
+
+
+def _season_rankings(players, seasons, min_matches, show_outfield, show_keepers) -> list:
+    rows = _season_rows(players, seasons)
+    outfield = rows[rows["position"] != "GK"]
+    keepers = rows[rows["position"] == "GK"]
+
+    def matches_line(r) -> str:
+        return f"{r['season']} · {_matches_text(int(r['matches']))}"
+
+    def goals_assists_line(r) -> str:
+        return f"{r['season']} · {r['goals']} G + {r['assists']} A · {_matches_text(int(r['matches']))}"
+
+    def clean_sheets_line(r) -> str:
+        cs = _plural(int(r["goals"]), "czyste konto", "czyste konta", "czystych kont")
+        return f"{r['season']} · {cs} · {_matches_text(int(r['matches']))}"
+
+    rankings = []
+    if show_outfield:
+        rankings += [
+            ("G+A", _season_count_ranking(outfield, "ga", goals_assists_line), "G+A", "Sezon"),
+            ("Gole", _season_count_ranking(outfield, "goals", matches_line), "Gole", "Sezon"),
+            ("G+A na mecz", _season_rate_ranking(outfield, "ga", min_matches, goals_assists_line),
+             "G+A / mecz", "Sezon"),
+        ]
+    rankings.append(("Asysty", _season_count_ranking(rows, "assists", matches_line), "Asysty", "Sezon"))
+    if show_keepers:
+        rankings += [
+            ("Czyste konta", _season_count_ranking(keepers, "goals", matches_line), "Czyste konta", "Sezon"),
+            ("Czyste konta %", _season_rate_ranking(keepers, "goals", min_matches, clean_sheets_line, percent=True),
+             "% meczów", "Sezon"),
+        ]
+    rankings.append(("Skok OVR", _season_ovr_jump(rows), "Zmiana OVR", "Przebieg"))
+    return rankings
+
+
 def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
     st.subheader("Rankingi")
 
@@ -202,6 +313,10 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
         "Uwzględnione filtry: " + (", ".join(active) if active else "brak (wszyscy zawodnicy)")
         + f". Pokazuję top {TOP_N}."
     )
+
+    mode = st.radio("Rodzaj rankingu", [PLAYERS_MODE, SEASONS_MODE], horizontal=True, key="ranking_mode")
+    if mode == SEASONS_MODE:
+        st.caption("Jedna pozycja w rankingu to jeden sezon jednego zawodnika (ten sam zawodnik może wystąpić kilka razy).")
 
     opt1, opt2 = st.columns(2)
     position_label = opt1.selectbox(
@@ -227,23 +342,10 @@ def render_rankings(game_filter, club_filter, fav_only, type_filter) -> None:
     show_outfield = positions is None or positions != {"GK"}
     show_keepers = positions is None or "GK" in positions
 
-    rankings = []
-    if show_outfield:
-        rankings += [
-            ("Strzelcy", _scorers(players, seasons), "Gole", "Mecze"),
-            ("Gole na mecz", _goals_per_match(players, seasons, min_matches), "Gole / mecz", "Bilans"),
-        ]
-    if show_keepers:
-        rankings += [
-            ("Czyste konta", _clean_sheets(players, seasons), "Czyste konta", "Mecze"),
-            ("Czyste konta %", _clean_sheet_rate(players, seasons, min_matches), "% meczów", "Bilans"),
-        ]
-    rankings += [
-        ("Asysty", _assists(players, seasons), "Asysty", "Mecze"),
-        ("Asysty na mecz", _assists_per_match(players, seasons, min_matches), "Asysty / mecz", "Bilans"),
-        ("Najdroższy", _most_valuable(players, seasons), "Najwyższa wartość", "Kiedy"),
-        ("Największy rozwój", _growth(players, seasons), "Zmiana OVR", "Przebieg"),
-    ]
+    if mode == SEASONS_MODE:
+        rankings = _season_rankings(players, seasons, min_matches, show_outfield, show_keepers)
+    else:
+        rankings = _player_rankings(players, seasons, min_matches, show_outfield, show_keepers)
 
     tabs = st.tabs([name for name, *_ in rankings])
     for tab, (_, df, value_header, detail_header) in zip(tabs, rankings):
