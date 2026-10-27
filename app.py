@@ -7,18 +7,20 @@ from pathlib import Path
 from db import (
     add_player, add_season, delete_player, delete_season, get_all_clubs, get_all_seasons, get_clubs,
     get_games, get_players, get_seasons, init_db, set_favorite,
-    update_player, update_season,
+    set_player_status, update_player, update_season,
 )
 from club_logos import delete_logo, save_logo
 from player_photos import delete_photo, photo_data_uri, save_photo
 from ui import (
-    format_money, logo_preview_html, player_header_html, players_table_html, seasons_table_html,
+    format_money, logo_preview_html, player_header_html, player_status_text, players_table_html,
+    seasons_table_html,
 )
 from potential import MATURE_AGE, MIN_TRAIN_PLAYERS, MIN_TRAIN_SAMPLES, estimate_potentials, train_from_rows
 from season_utils import is_valid_season, next_season
 from countries import CODES, country_name
 from charts import TEXT_DARK, TEXT_LIGHT, ovr_chart, value_chart
 from rankings import render_rankings
+from season_update import render_season_update
 
 player_table = components.declare_component(
     "player_table", path=str(Path(__file__).parent / "player_table_component")
@@ -82,7 +84,11 @@ st.title("Baza zawodników - Career Mode")
 if "flash" in st.session_state:
     st.success(st.session_state.pop("flash"))
 
-page = st.sidebar.radio("Widok", ["Zawodnicy", "Rankingi"])
+page = st.sidebar.radio("Widok", ["Zawodnicy", "Rankingi", "Aktualizacja sezonu"])
+
+if page == "Aktualizacja sezonu":
+    render_season_update()
+    st.stop()
 
 st.sidebar.header("Filtry")
 search = st.sidebar.text_input("Szukaj zawodnika", help="Szuka też po pełnym imieniu i nazwisku.")
@@ -91,6 +97,9 @@ club_filter = st.sidebar.selectbox("Mój klub", options=get_clubs(), index=None,
 fav_only = st.sidebar.checkbox("Tylko ulubieni")
 type_filter = st.sidebar.selectbox(
     "Typ zawodnika", ["Wszyscy", "Prawdziwi", "Wygenerowani przez grę"]
+)
+status_filter = st.sidebar.selectbox(
+    "Status w klubie", ["Wszyscy", "Obecna kadra", "Odeszli", "Zakończyli karierę"]
 )
 sort_label = st.sidebar.selectbox("Sortuj po", list(SORT_OPTIONS), index=1)
 descending = st.sidebar.checkbox("Malejąco", value=True)
@@ -240,6 +249,12 @@ if type_filter == "Prawdziwi":
     view = view[view["is_generated"] == 0]
 elif type_filter == "Wygenerowani przez grę":
     view = view[view["is_generated"] == 1]
+if status_filter == "Obecna kadra":
+    view = view[view["squad_status"].isna()]
+elif status_filter == "Odeszli":
+    view = view[view["squad_status"] == "left"]
+elif status_filter == "Zakończyli karierę":
+    view = view[view["squad_status"] == "retired"]
 
 if view.empty:
     st.info("Brak zawodników pasujących do filtrów.")
@@ -292,6 +307,9 @@ goals_label = "Czyste konta" if player["position"] == "GK" else "Gole"
 season_positions = season_position_options(player["position"])
 
 st.html(player_header_html(player, photo_data_uri(player_id)))
+status_info = player_status_text(player)
+if status_info:
+    st.caption(f"Status: {status_info}")
 
 phn = st.session_state.setdefault("photo_form_n", 0)
 
@@ -487,6 +505,23 @@ with st.expander("Edytuj lub usuń zawodnika"):
             key=f"e_gen_{player_id}",
         )
 
+        status_labels = ["W kadrze", "Odszedł", "Zakończył karierę"]
+        current_status = {"left": "Odszedł", "retired": "Zakończył karierę"}.get(
+            clean(player["squad_status"]), "W kadrze"
+        )
+        st1, st2, st3 = st.columns(3)
+        e_status = st1.selectbox(
+            "Status w klubie", status_labels, index=status_labels.index(current_status),
+            key=f"e_status_{player_id}",
+        )
+        e_left_to = st2.text_input(
+            "Dokąd odszedł (opcjonalnie)", value=clean(player["left_to"]), key=f"e_left_to_{player_id}"
+        )
+        e_left_season = st3.text_input(
+            "Sezon odejścia (opcjonalnie)", value=clean(player["left_season"]),
+            placeholder="2027/28", key=f"e_left_season_{player_id}",
+        )
+
         confirm_p = st.checkbox(
             "Potwierdzam usunięcie zawodnika wraz ze wszystkimi jego sezonami",
             key=f"e_confirm_{player_id}",
@@ -500,6 +535,8 @@ with st.expander("Edytuj lub usuń zawodnika"):
             st.error("Imię i nazwisko, numer gry oraz klub są wymagane.")
         elif not e_game.strip().isdigit():
             st.error("Numer gry - wpisz samą liczbę, np. 26")
+        elif e_left_season.strip() and not is_valid_season(e_left_season):
+            st.error("Sezon odejścia wpisz jako 2026/27 (przełom lat) albo 2026 (jeden rok).")
         else:
             update_player(
                 player_id,
@@ -512,6 +549,15 @@ with st.expander("Edytuj lub usuń zawodnika"):
                 e_orig.strip() if e_orig else None,
                 e_gen,
             )
+            if e_status == "W kadrze":
+                set_player_status(player_id, None, None, None)
+            else:
+                set_player_status(
+                    player_id,
+                    "left" if e_status == "Odszedł" else "retired",
+                    (e_left_to.strip() or None) if e_status == "Odszedł" else None,
+                    e_left_season.strip() or None,
+                )
             st.session_state["flash"] = f"Zapisano zmiany: {e_display.strip() or e_name.strip()}"
             st.rerun()
 

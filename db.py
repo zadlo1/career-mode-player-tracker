@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS players (
     managed_club  TEXT    NOT NULL,
     original_club TEXT,
     is_favorite   INTEGER NOT NULL DEFAULT 0,
-    is_generated  INTEGER NOT NULL DEFAULT 0
+    is_generated  INTEGER NOT NULL DEFAULT 0,
+    squad_status  TEXT,
+    left_to       TEXT,
+    left_season   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS seasons (
@@ -48,6 +51,7 @@ def init_db() -> None:
         conn.executescript(SCHEMA)
         _migrate_season_position(conn)
         _migrate_player_generated(conn)
+        _migrate_player_status(conn)
         _migrate_nationalities(conn)
 
 
@@ -68,6 +72,13 @@ def _migrate_player_generated(conn: sqlite3.Connection) -> None:
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(players)").fetchall()]
     if "is_generated" not in columns:
         conn.execute("ALTER TABLE players ADD COLUMN is_generated INTEGER NOT NULL DEFAULT 0")
+
+
+def _migrate_player_status(conn: sqlite3.Connection) -> None:
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(players)").fetchall()]
+    for column in ("squad_status", "left_to", "left_season"):
+        if column not in columns:
+            conn.execute(f"ALTER TABLE players ADD COLUMN {column} TEXT")
 
 
 def _migrate_nationalities(conn: sqlite3.Connection) -> None:
@@ -114,7 +125,7 @@ def get_players() -> list[sqlite3.Row]:
                    COALESCE(NULLIF(TRIM(ls.position), ''), p.position) AS position,
                    p.position AS start_position,
                    p.nationality, p.game, p.managed_club, p.original_club, p.is_favorite,
-                   p.is_generated,
+                   p.is_generated, p.squad_status, p.left_to, p.left_season,
                    ls.age, ls.ovr, ls.value_eur, pk.peak_age,
                    agg.max_ovr, agg.max_value, agg.matches, agg.goals, agg.assists
             FROM players p
@@ -258,3 +269,72 @@ def update_season(season_id, season, position, age, ovr, value_eur, matches, goa
 def delete_season(season_id) -> None:
     with get_connection() as conn:
         conn.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+
+
+def set_player_status(player_id, status, left_to, left_season) -> None:
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE players SET squad_status = ?, left_to = ?, left_season = ? WHERE id = ?",
+            (status, left_to, left_season, player_id),
+        )
+
+
+def apply_season_start(new_seasons, status_updates) -> None:
+    """Zapisuje nowe sezony i odejścia w jednej transakcji (albo wszystko, albo nic).
+
+    new_seasons: krotki (player_id, season, position, age, ovr, value_eur)
+    status_updates: krotki (player_id, status, left_to, left_season)
+    """
+    with get_connection() as conn:
+        conn.executemany(
+            """
+            INSERT INTO seasons (player_id, season, position, age, ovr, value_eur, matches, goals, assists)
+            VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0)
+            """,
+            new_seasons,
+        )
+        conn.executemany(
+            "UPDATE players SET squad_status = ?, left_to = ?, left_season = ? WHERE id = ?",
+            [(status, left_to, left_season, player_id) for player_id, status, left_to, left_season in status_updates],
+        )
+
+
+def get_career_seasons(game, club) -> list[str]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT s.season
+            FROM seasons s
+            JOIN players p ON p.id = s.player_id
+            WHERE p.game = ? AND p.managed_club = ?
+            ORDER BY s.season
+            """,
+            (game, club),
+        ).fetchall()
+        return [r["season"] for r in rows]
+
+
+def get_career_season_rows(game, club, season) -> list[sqlite3.Row]:
+    with get_connection() as conn:
+        return conn.execute(
+            """
+            SELECT s.id AS season_id, p.id AS player_id,
+                   COALESCE(NULLIF(TRIM(p.display_name), ''), p.name) AS shown_name,
+                   COALESCE(NULLIF(TRIM(s.position), ''), p.position) AS position,
+                   s.matches, s.goals, s.assists
+            FROM seasons s
+            JOIN players p ON p.id = s.player_id
+            WHERE p.game = ? AND p.managed_club = ? AND s.season = ?
+            ORDER BY shown_name
+            """,
+            (game, club, season),
+        ).fetchall()
+
+
+def update_season_stats(changes) -> None:
+    """changes: krotki (matches, goals, assists, season_id), zapisywane w jednej transakcji."""
+    with get_connection() as conn:
+        conn.executemany(
+            "UPDATE seasons SET matches = ?, goals = ?, assists = ? WHERE id = ?",
+            changes,
+        )

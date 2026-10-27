@@ -30,6 +30,9 @@ CSS = """
 .pl-pos { display: inline-block; padding: 1px 7px; margin-left: 8px; border-radius: 4px;
           color: #fff; font-size: 11px; font-weight: 600; vertical-align: middle; }
 .pl-muted { opacity: .5; }
+.pl-left { display: inline-block; padding: 0 6px; margin-left: 6px; border-radius: 4px;
+           background: rgba(128,128,128,.25); font-size: 10px; font-weight: 600;
+           vertical-align: middle; }
 .pl-est { opacity: .7; }
 .pl-link { cursor: pointer; }
 .pl-link:hover { text-decoration: underline; }
@@ -121,6 +124,25 @@ def nationality_html(code) -> str:
     return html.escape(code)
 
 
+def player_status_text(r) -> str:
+    """Opis odejścia zawodnika (zwykły tekst) albo pusty napis, gdy jest w kadrze."""
+    status = r.get("squad_status")
+    if status not in ("left", "retired"):
+        return ""
+    season = r.get("left_season")
+    season = "" if season is None or (not isinstance(season, str) and pd.isna(season)) else str(season).strip()
+    if status == "retired":
+        return "zakończył karierę" + (f" ({season})" if season else "")
+    destination = r.get("left_to")
+    destination = "" if destination is None or (not isinstance(destination, str) and pd.isna(destination)) else str(destination).strip()
+    text = "odszedł"
+    if destination:
+        text += f" do {destination}"
+    if season:
+        text += f" ({season})"
+    return text
+
+
 def _peak_age_cell(r) -> str:
     peak = r.get("peak_age")
     if peak is None or pd.isna(peak):
@@ -142,13 +164,21 @@ def players_table_html(view: pd.DataFrame, clickable: bool = False) -> str:
             f'<span class="pl-link" data-pid="{int(r["id"])}"{full_title}>{_text(r["shown_name"])}</span>'
             if clickable else f"<span{full_title}>{_text(r['shown_name'])}</span>"
         )
-        sub_player = nationality_html(r["nationality"])
+        status_text = player_status_text(r)
+        status_badge = (
+            f'<span class="pl-left" title="{_text(status_text)}">'
+            f'{"emerytura" if r.get("squad_status") == "retired" else "odszedł"}</span>'
+            if r.get("squad_status") in ("left", "retired") else ""
+        )
+        sub_player = " · ".join(
+            part for part in (nationality_html(r["nationality"]), _text(status_text)) if part
+        )
 
         rows.append(
             f"""
 <tr>
   <td>
-    <div class="pl-name">{star}{name_html}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}</div>
+    <div class="pl-name">{star}{name_html}<span class="pl-pos" style="background:{position_color(r['position'])}">{_text(r['position'])}</span>{generated}{status_badge}</div>
     <div class="pl-sub">{sub_player}</div>
   </td>
   <td class="pl-num">{_peak_age_cell(r)}</td>
