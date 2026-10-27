@@ -16,6 +16,8 @@ i zdjęcia w `data/images/`. Nic z tego nie jest częścią repozytorium.
 - podsumowanie sezonów oraz wykresy rozwoju OVR i wartości transferowej
 - edycja i usuwanie zawodników oraz sezonów
 - rankingi (top 10): strzelcy, czyste konta, asysty, najdroższy zawodnik, największy rozwój OVR
+- aktualizacja sezonu: początek (nowe sezony dla całej kadry naraz, z odejściami i nowymi zawodnikami)
+  i koniec (statystyki całej kadry w jednej tabeli); status zawodnika (w kadrze / odszedł / emerytura)
 - rankingi pojedynczych sezonów (najlepszy sezon wg G+A, gole, asysty, czyste konta, G+A na mecz,
   największy skok OVR); przełącznik „Rodzaj rankingu” w widoku Rankingi
 - statystyki na mecz (gole, asysty, % czystych kont) w tabeli sezonów i w rankingach z progiem
