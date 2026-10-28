@@ -1,0 +1,28 @@
+[project]
+name = "career-mode-tracker"
+version = "0.1.0"
+description = "Aplikacja do prowadzenia własnej bazy kariery w EA FC: zawodnicy, sezony, kluby i rozgrywki."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115",
+]
+
+[project.scripts]
+careertracker = "careertracker.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/careertracker"]
+
+[tool.fastapi]
+entrypoint = "careertracker.web.app:app"

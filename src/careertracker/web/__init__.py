@@ -1,0 +1,1 @@
+"""Warstwa WWW: FastAPI, szablony Jinja i HTMX."""

@@ -1,7 +1,17 @@
+# Python
 .venv/
-.idea/
 __pycache__/
 *.pyc
-data/*.db
-data/images
-*.csv
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+
+# Edytory
+.idea/
+.vscode/
+
+# Dane lokalne
+data/*
+!data/.gitkeep
