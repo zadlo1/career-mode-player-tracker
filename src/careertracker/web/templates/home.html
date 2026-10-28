@@ -1,0 +1,13 @@
+﻿{% extends "base.html" %}
+
+{% block content %}
+<h1>Career Mode Tracker</h1>
+<p class="muted">Nowa wersja w budowie (FastAPI + HTMX). Poprzednia wersja jest dostępna w wydaniu <code>v1-streamlit</code>.</p>
+
+<section class="card">
+  <h2>Sprawdź połączenie</h2>
+  <p class="muted">Przycisk pobiera z serwera fragment strony i podmienia go bez przeładowania.</p>
+  <button class="btn" hx-get="/status" hx-target="#status" hx-swap="innerHTML">Sprawdź</button>
+  <p id="status" class="status" aria-live="polite"></p>
+</section>
+{% endblock %}
