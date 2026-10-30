@@ -13,8 +13,9 @@ careertracker = "careertracker.cli:main"
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4",
     "pytest>=8",
-    "ruff>=0.6",
+    "ruff>=0.17",
 ]
 
 [build-system]
@@ -26,3 +27,24 @@ packages = ["src/careertracker"]
 
 [tool.fastapi]
 entrypoint = "careertracker.web.app:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle (błędy)
+    "W",   # pycodestyle (ostrzeżenia)
+    "F",   # pyflakes
+    "I",   # kolejność importów
+    "UP",  # nowsza składnia Pythona
+    "B",   # typowe błędy (flake8-bugbear)
+    "SIM", # uproszczenia kodu
+    "C4",  # czytelniejsze comprehensions
+]

@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -22,7 +22,7 @@ def home(request: Request):
 
 @app.get("/status", response_class=HTMLResponse)
 def status(request: Request):
-    """Fragment HTML podmieniany przez HTMX (przykład działania komunikacji z serwerem)."""
+    """Fragment HTML podmieniany przez HTMX (przykład komunikacji z serwerem)."""
     context = {"version": __version__, "time": datetime.now().strftime("%H:%M:%S")}
     return templates.TemplateResponse(request, "partials/status.html", context)
 
