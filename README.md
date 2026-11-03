@@ -29,13 +29,16 @@ Aplikacja działa pod adresem http://127.0.0.1:8000. Do pracy nad kodem:
 ## Struktura
 
     src/careertracker/
-      domain/     czysta logika (bez bazy i bez WWW)
+      domain/     czysta logika (kraje, sezony, pozycje, oceny, kwoty, statystyki, potencjał)
       db/         modele i migracje bazy
       services/   przypadki użycia
-      web/        FastAPI, szablony Jinja, HTMX, pliki statyczne
+      web/        FastAPI, szablony Jinja, HTMX, pliki statyczne (flagi w web/static/flags)
     tests/
+    tools/        skrypty pomocnicze (pobieranie flag, dopasowanie modelu potencjału)
     data/         baza i grafiki (poza gitem)
 
 ## Licencje
 HTMX (`src/careertracker/web/static/htmx.min.js`) na licencji 0BSD, kopia w `LICENSE-htmx.txt`.
+Flagi państw w `src/careertracker/web/static/flags` pochodzą z projektu
+[flag-icons](https://github.com/lipis/flag-icons) (licencja MIT, kopia licencji obok flag).
 Projekt nie zawiera żadnych grafik ani danych należących do EA.
